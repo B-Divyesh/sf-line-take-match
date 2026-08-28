@@ -1,1 +1,1 @@
-Compare recorded dialogue takes with an approved read in your browser.
+Compare recorded voice takes with an approved take in your browser.

@@ -84,11 +84,11 @@ function render() {
   app.innerHTML = `
     <header class="site-header">
       <a class="brand" href="/" aria-label="Line Take Match home"><span class="brand-mark" aria-hidden="true">LT</span><span>Line Take Match</span></a>
-      <nav class="site-nav" aria-label="Primary"><a href="/?demo=1" ${demoMode ? 'aria-current="page"' : ''}>Demo</a><a href="/privacy/">Privacy</a>${demoMode ? '' : `<button class="button quiet" data-action="show-license">${unlocked ? 'Studio active' : 'See Studio — $19'}</button>`}</nav>
+      <nav class="site-nav" aria-label="Primary"><a href="/?demo=1" ${demoMode ? 'aria-current="page"' : ''}>Demo</a><a href="/privacy/">Privacy</a>${demoMode ? '' : `<button class="button quiet" data-action="show-license">${unlocked ? 'Manage Studio license' : 'See Studio — $19'}</button>`}</nav>
     </header>
     ${demoMode ? demoBannerMarkup() : ''}
     <main id="main" tabindex="-1">
-      ${demoMode ? demoIntroMarkup() : `<section class="hero ${takes.length ? 'hero-compact' : ''}" aria-labelledby="page-title">
+      ${demoMode ? demoIntroMarkup(reference, current.find((take) => !take.reference) ?? current[0]) : `<section class="hero ${takes.length ? 'hero-compact' : ''}" aria-labelledby="page-title">
         <div class="hero-copy">
           <p class="eyebrow">Voice take comparison</p>
           <h1 id="page-title">Compare voice takes<br><em>with an approved take.</em></h1>
@@ -147,8 +147,17 @@ function demoBannerMarkup() {
   return `<aside class="demo-banner" aria-label="Demo controls"><strong>Demo — sample data, nothing is saved to your take list</strong><div><button class="button secondary" data-action="reset-demo">Reset demo</button><button class="button primary" data-action="start-real">Start for real</button></div></aside>`;
 }
 
-function demoIntroMarkup() {
-  return `<section class="demo-intro" aria-labelledby="page-title"><p class="eyebrow">Sample take list</p><h1 id="page-title">Compare these sample voice takes.</h1><p>One approved read and two alternatives show the differences to review.</p></section>`;
+function demoIntroMarkup(reference?: Take, candidate?: Take) {
+  const candidateDelta = reference && candidate && candidate.id !== reference.id
+    ? delta(candidate.metrics.loudness, reference.metrics.loudness, ' dB')
+    : 'Loading sample difference';
+  return `<section class="demo-intro" aria-labelledby="page-title"><div class="demo-intro-copy"><p class="eyebrow">Sample take list</p><h1 id="page-title">Compare sample takes.</h1><p>Hear the approved read, then one alternative.</p></div>${reference && candidate && candidate.id !== reference.id ? `<aside class="demo-proof" aria-label="Sample comparison">
+    <div class="demo-proof-label"><span>Approved take</span><strong>${escapeHtml(reference.name)}</strong></div>
+    <div class="demo-proof-arrow" aria-hidden="true">→</div>
+    <div class="demo-proof-label"><span>Compare with</span><strong>${escapeHtml(candidate.name)}</strong></div>
+    <div class="demo-proof-delta"><span>Level</span><strong>${candidateDelta}</strong></div>
+    <button class="chip compare-play" data-action="compare-play" data-id="${candidate.id}" aria-pressed="${comparisonPlayback?.candidateId === candidate.id}">${comparisonPlayback?.candidateId === candidate.id ? comparisonPlayback.phase === 'approved' ? 'Playing approved take…' : 'Playing this take…' : 'Play approved, then this take'}</button>
+  </aside>` : ''}</section>`;
 }
 
 function informationMarkup() {
@@ -158,7 +167,7 @@ function informationMarkup() {
 }
 
 function footerMarkup() {
-  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · polish-2</span></nav></footer>`;
+  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · polish-3</span></nav></footer>`;
 }
 
 function loadingMarkup() {
@@ -166,12 +175,12 @@ function loadingMarkup() {
 }
 
 function emptyMarkup() {
-  return `<section class="empty-state" aria-labelledby="empty-title"><div class="signal-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div><p class="section-kicker">02 / Compare</p><h2 id="empty-title">Your takes will appear here</h2><p>Import two or more recordings of one line. Choose the approved take, then listen to any measured differences.</p><ol><li>Group takes by filename</li><li>Choose the take to compare against</li><li>Flag a take and export CSV</li></ol></div></section>`;
+  return `<section class="empty-state" aria-labelledby="empty-title"><div class="signal-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div><p class="section-kicker">02 / Compare</p><h2 id="empty-title">Your takes will appear here</h2><p>Import two or more recordings of one line. Choose the approved take, then listen to any measured differences.</p><ol><li>Group takes by filename</li><li>Choose the take to compare against</li><li>Flag a take and export CSV</li></ol><div class="empty-actions"><button class="button secondary" data-action="import-backup">Import a project backup</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div></div></section>`;
 }
 
 function boardMarkup(lines: string[], current: Take[], reference: Take | undefined, flagged: number) {
   return `<section class="board" aria-labelledby="board-title">
-    <div class="board-heading"><div><p class="section-kicker">02 / Compare</p><h2 id="board-title">Take list</h2></div><div class="summary"><span><b>${uniqueLines(takes).length}</b> lines</span><span><b>${takes.length}</b> takes</span><span><b>${flagged}</b> flagged</span></div></div>
+    <div class="board-heading"><div><p class="section-kicker">02 / Compare</p><h2 id="board-title">Take list</h2></div><div class="summary"><span><b>${uniqueLines(takes).length}</b> ${uniqueLines(takes).length === 1 ? 'line' : 'lines'}</span><span><b>${takes.length}</b> ${takes.length === 1 ? 'take' : 'takes'}</span><span><b>${flagged}</b> flagged</span></div></div>
     <div class="board-tools">
       <label class="search"><span>Find a line</span><input id="search" type="search" value="${escapeAttr(search)}" placeholder="Search line names"></label>
       <div class="export-actions"><button class="button secondary" data-action="import-backup">Import backup</button><input id="backup-file" type="file" accept="application/json,.json" hidden><button class="button secondary" data-action="backup" ${unlocked ? '' : 'aria-describedby="backup-lock"'}>Back up project${unlocked ? '' : ' · Studio'}</button><button class="button primary" data-action="csv">Export CSV</button></div>
@@ -211,9 +220,9 @@ function takeMarkup(take: Take, reference?: Take) {
     ${metricCell('Pauses', `${Math.round(metrics.pauseRatio * 100)}%`, delta(metrics.pauseRatio * 100, reference ? reference.metrics.pauseRatio * 100 : undefined, ' pts'), metrics.pauseRatio * 100)}
     ${metricCell('Pitch range', metrics.pitchRange == null ? '—' : `${metrics.pitchRange.toFixed(1)} st`, metrics.pitchRange == null ? 'No stable pitch found' : delta(metrics.pitchRange, reference?.metrics.pitchRange ?? undefined, ' st'), Math.min(100, (metrics.pitchRange ?? 0) * 8))}
     <div class="take-actions">
-      <button class="chip ${take.reference ? 'active' : ''}" data-action="reference" data-id="${take.id}" data-focus-key="reference:${take.id}" ${take.reference ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${take.reference ? '✓ Approved' : 'Set as approved'}</button>
+      ${take.reference ? `<span class="chip active status-chip" role="status" tabindex="-1" data-focus-key="reference:${take.id}">Approved take</span>` : `<button class="chip" data-action="reference" data-id="${take.id}" data-focus-key="reference:${take.id}" aria-pressed="false">Set as approved</button>`}
       ${reference && reference.id !== take.id && objectUrl && reference.blob ? `<button class="chip compare-play" data-action="compare-play" data-id="${take.id}" aria-pressed="${comparisonPlayback?.candidateId === take.id}">${comparisonPlayback?.candidateId === take.id ? comparisonPlayback.phase === 'approved' ? 'Playing approved take…' : 'Playing this take…' : 'Play approved, then this take'}</button>` : ''}
-      <button class="chip ${take.flagged ? 'warning' : ''}" data-action="flag" data-id="${take.id}" data-focus-key="flag:${take.id}" aria-pressed="${take.flagged}">${take.flagged ? '⚑ Flagged' : 'Flag review'}</button>
+      <button class="chip ${take.flagged ? 'warning' : ''}" data-action="flag" data-id="${take.id}" data-focus-key="flag:${take.id}" aria-pressed="${take.flagged}">${take.flagged ? 'Remove review flag' : 'Flag review'}</button>
       <label class="note-field"><span>Review note</span><input data-field="note" data-id="${take.id}" value="${escapeAttr(take.note)}" placeholder="Direction note"></label>
       <button class="icon-button" data-action="remove" data-id="${take.id}" aria-label="Remove ${escapeAttr(take.name)}">Remove</button>
     </div>

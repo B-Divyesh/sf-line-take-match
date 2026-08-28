@@ -38,6 +38,21 @@ test('states the job, audience, next step, and demo action in the first mobile v
   expect(box && box.y + box.height).toBeLessThanOrEqual(844);
 });
 
+test('shows a working sample comparison in the first demo viewport', async ({ page }) => {
+  await page.goto('/?demo=1');
+  const proof = page.getByRole('complementary', { name: 'Sample comparison' });
+  await expect(proof.getByText('door-warning_take-01')).toBeVisible();
+  await expect(proof.getByText('door-warning_take-02')).toBeVisible();
+  await expect(proof.getByText(/dB difference/)).toBeVisible();
+  await expect(proof.getByRole('button', { name: 'Play approved, then this take' })).toBeVisible();
+  const box = await proof.boundingBox();
+  expect(box && box.y + box.height).toBeLessThanOrEqual(844);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.reload();
+  const desktopBox = await page.getByRole('complementary', { name: 'Sample comparison' }).boundingBox();
+  expect(desktopBox && desktopBox.y + desktopBox.height).toBeLessThanOrEqual(800);
+});
+
 test('moves focus to main content from the skip link', async ({ page }) => {
   await page.keyboard.press('Tab');
   const skip = page.getByRole('link', { name: 'Skip to main content' });
@@ -100,12 +115,12 @@ test('imports, compares, flags, persists, and works offline', async ({ page, con
   await expect(page.getByText('2 files processed locally.')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.take-card')).toHaveCount(2);
   await page.getByRole('button', { name: 'Set as approved' }).first().click();
-  await expect(page.getByText('Approved take', { exact: true })).toBeVisible();
+  await expect(page.locator('.status-chip')).toHaveCount(1);
   await page.getByRole('button', { name: 'Flag review' }).last().click();
   await expect(page.getByText('Take flagged for review.')).toBeVisible();
   await page.reload();
   await expect(page.locator('.take-card')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: '⚑ Flagged' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove review flag' })).toBeVisible();
 
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
@@ -148,12 +163,12 @@ test('keeps keyboard focus on the updated reference, flag, and line controls', a
   const reference = page.getByRole('button', { name: 'Set as approved' }).first();
   await reference.focus();
   await reference.press('Enter');
-  await expect(page.getByRole('button', { name: '✓ Approved' }).first()).toBeFocused();
+  await expect(page.locator('.status-chip').first()).toBeFocused();
 
   const flag = page.getByRole('button', { name: 'Flag review' }).first();
   await flag.focus();
   await flag.press('Enter');
-  await expect(page.getByRole('button', { name: '⚑ Flagged' }).first()).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Remove review flag' }).first()).toBeFocused();
 
   const nextLine = page.locator('[data-line="window"]');
   await nextLine.focus();
@@ -182,7 +197,7 @@ test('captures a verified checkout return token and removes it from the address 
   await page.route('**/api/v1/products/line-take-match/verify?license=returned-token', (route) => route.fulfill({ json: { valid: true, reason: 'ok' } }));
   await page.goto('/?campaign=summer&license=returned-token');
 
-  await expect(page.getByRole('button', { name: 'Studio active' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Manage Studio license' })).toBeVisible();
   await expect(page).not.toHaveURL(/license=/);
   await expect(page).toHaveURL(/campaign=summer/);
 });

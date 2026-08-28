@@ -44,7 +44,7 @@ The live verifier checks the deployed demo, routes, 404, checkout, manifest, iso
 - Recordings, measurements, flags, line names, notes, and licenses stay in browser storage.
 - The demo uses the separate `demo:line-take-match` database.
 - CSV exports stay free.
-- Studio backups contain the audio itself. Treat them like source recordings.
+- Studio backups include audio and can restore a take list in another browser. Treat them like source recordings.
 - License verification is the only optional request to Sociobot.
 - The app has no analytics, trackers, remote fonts, transcription calls, or generation calls.
 

@@ -57,10 +57,10 @@
   },
   {
     "id": "studio-backup",
-    "claim": "A $19 one-time Studio license adds unlimited takes and backups that include audio.",
+    "claim": "A $19 one-time Studio license adds unlimited takes and portable backups that include audio.",
     "where": "landing Studio section, Studio details, README, terms",
     "test": "npm run test:claims -- --grep @claim:studio-backup",
-    "sandbox": "enter from fresh demo, assert a recorded USD 1900 one-time catalog response, use a recorded verified-license verdict, import 13 generated WAVs, and assert the downloaded backup contains all audio data"
+    "sandbox": "enter from fresh demo, assert a recorded USD 1900 one-time catalog response, use a recorded verified-license verdict, import 13 generated WAVs, then restore the exported audio backup into a separate clean browser context and assert its takes, line, note, measurements, flag, approved state, and playable audio"
   },
   {
     "id": "billing-api",
