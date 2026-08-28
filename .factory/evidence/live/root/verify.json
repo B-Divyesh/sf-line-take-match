@@ -1,0 +1,14 @@
+{
+  "url": "https://line-take-match.sociobot.in/",
+  "loadMs": 924,
+  "errors": [],
+  "a11y": {
+    "title": "Line Take Match — compare recorded voice takes",
+    "lang": "en",
+    "h1": 1,
+    "main": true,
+    "imgsMissingAlt": 0,
+    "buttonsUnlabeled": 0,
+    "textLength": 1605
+  }
+}

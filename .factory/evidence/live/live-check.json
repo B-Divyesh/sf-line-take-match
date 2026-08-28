@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-08-28T12:06:01.187Z",
+  "base": "https://line-take-match.sociobot.in",
+  "viewport": "390x844",
+  "consoleErrors": [],
+  "demo": {
+    "sampleTakes": 3,
+    "realSentinelPreserved": true,
+    "resetRestoredSamples": true,
+    "clearedOnExit": true,
+    "offlineReload": true
+  },
+  "checkout": {
+    "status": 303,
+    "hostedRedirect": true,
+    "invalidLicenseRejected": true
+  },
+  "manifestContentType": "application/manifest+json",
+  "routes": [
+    {
+      "path": "/",
+      "status": 200,
+      "title": "Line Take Match — compare recorded voice takes",
+      "seriousAxeViolations": 0
+    },
+    {
+      "path": "/demo/",
+      "status": 200,
+      "title": "Demo — Line Take Match",
+      "seriousAxeViolations": 0
+    },
+    {
+      "path": "/privacy/",
+      "status": 200,
+      "title": "Privacy — Line Take Match",
+      "seriousAxeViolations": 0
+    },
+    {
+      "path": "/terms/",
+      "status": 200,
+      "title": "Terms — Line Take Match",
+      "seriousAxeViolations": 0
+    },
+    {
+      "path": "/not-a-real-page",
+      "status": 404,
+      "title": "Page not found — Line Take Match",
+      "seriousAxeViolations": 0
+    }
+  ]
+}
