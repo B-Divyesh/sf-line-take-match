@@ -40,5 +40,8 @@
         "Content-Type": "application/manifest+json"
       }
     }
-  ]
+  ],
+  "mimeTypes": {
+    ".webmanifest": "application/manifest+json"
+  }
 }

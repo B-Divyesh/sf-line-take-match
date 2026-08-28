@@ -30,11 +30,14 @@ npm test
 npm run build
 npm run test:claims
 npm run test:e2e
+npm run verify:live
 ```
 
 The production command checks types and builds every page. It then adds the current files to the offline cache. Deploy the generated `dist/` directory.
 
 The browser suite uses Playwright 1.58.2. It covers desktop, 390px mobile, browser storage, accessibility, privacy, and offline reload.
+
+The live verifier checks the deployed demo, routes, 404, checkout, manifest, isolation, offline reload, focus, mobile layout, and accessibility.
 
 ## Data and privacy
 
