@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://line-take-match.sociobot.in/sitemap.xml
