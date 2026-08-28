@@ -70,6 +70,7 @@ try {
   await page.locator('[data-field="note"]').first().fill('changed in live demo');
   await page.locator('[data-field="note"]').first().blur();
   await page.getByRole('button', { name: 'Reset demo' }).click();
+  await page.waitForFunction(() => document.querySelector('[data-field="note"]')?.value !== 'changed in live demo');
   check(await page.locator('[data-field="note"]').first().inputValue() !== 'changed in live demo', 'Demo reset did not restore samples');
 
   await page.evaluate(async () => {
@@ -93,6 +94,7 @@ try {
     ['/terms/', 'Terms — Line Take Match'],
     ['/not-a-real-page', 'Page not found — Line Take Match'],
   ]) {
+    const errorsBeforeRoute = consoleErrors.length;
     const response = await page.goto(`${base}${path}`, { waitUntil: 'networkidle' });
     const expectedStatus = path === '/not-a-real-page' ? 404 : 200;
     check(response?.status() === expectedStatus, `${path} returned ${response?.status()}`);
@@ -101,6 +103,10 @@ try {
     check(Boolean(await page.locator('link[rel="canonical"]').getAttribute('href')), `${path} has no canonical URL`);
     const serious = (await new AxeBuilder({ page }).analyze()).violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? ''));
     check(serious.length === 0, `${path} has serious accessibility violations`);
+    if (path === '/not-a-real-page') {
+      const expected404Errors = consoleErrors.splice(errorsBeforeRoute);
+      check(expected404Errors.every((message) => message.includes('status of 404')), 'The not-found route logged an unexpected error');
+    }
     routeChecks.push({ path, status: response.status(), title, seriousAxeViolations: 0 });
   }
 
