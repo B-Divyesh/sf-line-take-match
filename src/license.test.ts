@@ -50,4 +50,13 @@ describe('license verification', () => {
     expect(hasOptimisticUnlock()).toBe(false);
     clearLicense();
   });
+
+  it('locks Studio when Sociobot reports a revoked license', async () => {
+    vi.stubGlobal('localStorage', storage);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ valid: false, reason: 'revoked' }), { status: 200 })));
+    saveLicense('revoked-token');
+
+    await expect(verifyLicense(true)).resolves.toBe('invalid');
+    expect(hasOptimisticUnlock()).toBe(false);
+  });
 });
