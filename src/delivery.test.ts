@@ -12,4 +12,9 @@ describe('static delivery policy', () => {
     expect(assetRoute?.headers['Cache-Control']).toBe('public, max-age=31536000, immutable');
     expect(workerRoute?.headers['Cache-Control']).toBe('no-cache');
   });
+
+  it('does not precache Azure deployment metadata that the host does not serve', async () => {
+    const injector = await readFile('scripts/inject-sw.mjs', 'utf8');
+    expect(injector).toContain("!file.endsWith('staticwebapp.config.json')");
+  });
 });

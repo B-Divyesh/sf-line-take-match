@@ -10,7 +10,7 @@ Repaired candidate base: `7a47fb8f6d29433db83e2df7f8e20a0d5f95aa10`
 - **LTM-03:** Reference, flag, and line controls carry stable focus keys and regain keyboard focus after the board re-renders.
 - **LTM-04:** Restore failures render inside the open dialog as an assertive, associated message. The entered token remains available for correction or retry.
 - **LTM-05:** Mixed imports report separate successful and failed counts while retaining per-file decode errors.
-- **LTM-06:** `public/staticwebapp.config.json` sets immutable one-year caching for `/assets/*`, keeps `sw.js` updateable with `no-cache`, assigns the manifest MIME type, and adds CSP, frame, permissions, COOP/CORP, nosniff, and referrer policies.
+- **LTM-06:** `public/staticwebapp.config.json` sets immutable one-year caching for `/assets/*`, keeps `sw.js` updateable with `no-cache`, assigns the manifest MIME type, and adds CSP, frame, permissions, COOP/CORP, nosniff, and referrer policies. The generated precache excludes Azure’s non-public deployment metadata so the worker can install.
 - **LTM-07:** Home and legal links have direct 44×44 CSS-pixel targets in both app and legal styles.
 - The checkout link, product slug, $19 one-time terms, return-token capture, and all free local-first workflow behavior were retained. Production billing registration is external to this repository and is checked again after deployment.
 
@@ -24,7 +24,7 @@ Repaired candidate base: `7a47fb8f6d29433db83e2df7f8e20a0d5f95aa10`
 
 ```text
 npm ci                         PASS — 60 packages, 0 vulnerabilities
-npm test                       PASS — 3 files, 10 tests
+npm test                       PASS — 3 files, 11 tests
 npm run typecheck              PASS — strict TypeScript
 npm run build                  PASS — dist/ with root index.html
 npm run test:e2e               PASS — 14 tests (desktop + 390px mobile)
