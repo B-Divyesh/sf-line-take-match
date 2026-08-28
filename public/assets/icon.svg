@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Line Take Match icon</title>
+  <rect width="512" height="512" rx="88" fill="#090a12"/>
+  <path fill="#191e30" d="M64 64h384v384H64z"/>
+  <path fill="#45e6e6" d="M104 248h34v32h-34zm54-72h34v176h-34zm54 28h34v120h-34zm54-76h34v272h-34zm54 56h34v160h-34zm54 64h34v32h-34z"/>
+  <path fill="#ff5ca8" d="M94 380h324v28H94z"/>
+  <path fill="#ffc857" d="m385 96 31 31-31 31-31-31z"/>
+</svg>

@@ -1,0 +1,11 @@
+{
+  "slug": "line-take-match",
+  "title": "Line Take Match",
+  "territory": "games-creative",
+  "user": "Indie animators and game creators recording character lines who need to compare takes for level, pace, and emotional consistency without cloning anyone’s voice.",
+  "smallest_useful_product": "A local web app that imports creator-owned WAV/MP3 takes, groups them by line, shows loudness, duration, pause, and pitch-range comparison against a selected approved take, and exports a handoff CSV.",
+  "success_measure": "A creator labels and compares 40 lines in under 30 minutes and flags at least five materially inconsistent takes before export.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time",
+  "constraints": "Process audio locally; obtain performer consent for all material; present measurements as review cues rather than quality scores; respect licensed-music and performer-rights boundaries."
+}
