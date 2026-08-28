@@ -1,37 +1,31 @@
-# Line Take Match — verification handoff
+# Line Take Match — first-read review handoff
 
 ## FAIL — 2026-08-28 UTC
 
-Verified candidate: `d3b72445041fe78652f43448341176ac680c48dd`
-
-Live URL: <https://line-take-match.sociobot.in>
-Full evidence: [.factory/verification-3.md](./verification-3.md)
-
-No product code was modified for this verification.
+Reviewed live <https://line-take-match.sociobot.in> and fresh clone `c52b986be26ff646eead2802f2f6026b0c1413a8`. No product code was modified. Full findings: [review-1.md](./review-1.md).
 
 ## Result
 
-The live deployment is an exact match for the rebuilt candidate (20/20 public application artifacts, including source maps, SHA-256 matched). The local-first take-comparison workflow, 40-line scenario, 390px responsive view, keyboard regression suite, PWA offline reload/update behavior, privacy traffic checks, response headers, axe scan, and Lighthouse checks pass.
+The product fails the requested adversarial first-read review. The mobile first screen uses an unexplained metaphor and has no visible first task. There is no sample demo. `?demo=1` loads the ordinary empty product and writes to normal `line-take-match` IndexedDB rather than an isolated demo namespace. The advertised Studio checkout is still HTTP 404. `.factory/claims.json` and all `@claim:` tests are absent.
 
-**Release remains blocked by LTM-01 (S1):** the advertised production Studio checkout at `https://api.sociobot.in/api/v1/products/line-take-match/checkout` returned HTTP 404 with `{"error":"enabled factory product","status":404}` on fresh verification. Customers cannot buy the advertised $19 one-time unlock.
+The review also records missing real `/demo`/404 behavior, incomplete route metadata, unresolved skip-link focus (`LTM-08`), and copy/plain-language issues.
 
-Also open: **LTM-08 (S3)** — the skip link scrolls to `#main` but leaves focus on `<body>` because the target main landmark is not focusable.
-
-## Commands verified
+## Verification performed
 
 ```bash
+# fresh remote clone
 npm ci
-npm test                 # 11/11
-npm run typecheck
-npm run build
-npm run test:e2e         # 14/14 desktop + 390px mobile
-npm run preview
+npm test             # 11/11 passed
+npm run build        # passed; dist/ produced
+npm run test:e2e     # 14/14 passed
 ```
 
-Fresh local Lighthouse mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1.5 s, CLS 0. The app JS is 23.77 KB uncompressed / 9.27 KB gzip and app CSS is 15.84 KB / 4.53 KB gzip.
+Fresh live Chromium checks covered 390px mobile, 1280px desktop, link crawl, demo URL, offline reload, IndexedDB namespace, request interception, route metadata, and axe on root/privacy/terms (zero axe violations). The live checkout endpoint returned 404.
 
 ## Required next steps
 
-1. Enable/register the `line-take-match` production billing product and its HTTPS return URL in Sociobot’s control plane.
-2. Re-run live checkout, license return, valid/invalid/revoked verification, and cached-valid offline behavior.
-3. Move focus to the main landmark after activating the skip link, then re-run keyboard/accessibility checks.
+1. Implement the one-click, isolated `/demo` sandbox and its tests/docs.
+2. Repair/enable the production Sociobot checkout and verify the full paid path.
+3. Add the required claims registry and one fresh-demo observable test per public claim.
+4. Replace metaphor/jargon-led first-screen copy with job/audience/action copy.
+5. Add proper `/demo`, designed 404, metadata, shared legal route skeleton, and skip-focus behavior; then repeat this entire review.
