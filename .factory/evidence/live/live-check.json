@@ -1,11 +1,11 @@
 {
-  "checkedAt": "2026-08-28T13:17:29.374Z",
+  "checkedAt": "2026-08-28T14:27:07.180Z",
   "base": "https://line-take-match.sociobot.in",
   "viewport": "390x844",
   "consoleErrors": [],
   "demo": {
     "sampleTakes": 3,
-    "comparisonPlaybackActions": 2,
+    "firstViewportProof": true,
     "realSentinelPreserved": true,
     "resetRestoredSamples": true,
     "clearedOnExit": true,
