@@ -32,10 +32,10 @@ An 8px base grid with 4px micro-adjustments. Main gutters are 16px mobile, 32px 
 ## Interaction grammar
 
 - Import is the lit storefront: a wide drop zone that opens the file picker from click, Enter, or Space.
-- A take becomes the reference through an explicit “Set reference” action. Magenta indicates the selected take; cyan indicates the approved reference.
+- A take becomes approved through an explicit “Set as approved” action. Magenta indicates selection; cyan indicates the approved take.
 - Measurements are review cues, never scores. Deltas are written in units and plain language.
 - Flagging applies amber tape; removing a take requires confirmation and offers an undo toast.
-- Filtering and line selection behave like a compact cue sheet on mobile, never a squeezed desktop table.
+- Filtering and line selection behave like a compact take list on mobile, never a squeezed desktop table.
 
 ## Motion
 

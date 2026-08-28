@@ -2,7 +2,7 @@
   "name": "Line Take Match",
   "short_name": "Take Match",
   "description": "Compare creator-owned voice takes privately on your device.",
-  "start_url": "/?source=installed&v=1",
+  "start_url": "/?source=installed&v=2",
   "scope": "/",
   "display": "standalone",
   "background_color": "#090A12",

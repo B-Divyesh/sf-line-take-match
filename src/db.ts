@@ -1,11 +1,12 @@
 import type { Take } from './types';
 
-const DB_NAME = 'line-take-match';
+export const REAL_DB_NAME = 'line-take-match';
+export const DEMO_DB_NAME = 'demo:line-take-match';
 const STORE = 'takes';
 
-function openDatabase(): Promise<IDBDatabase> {
+function openDatabase(databaseName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(databaseName, 1);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) {
         request.result.createObjectStore(STORE, { keyPath: 'id' });
@@ -16,8 +17,8 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-async function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await openDatabase();
+async function transaction<T>(databaseName: string, mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openDatabase(databaseName);
   try {
     return await new Promise<T>((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
@@ -30,9 +31,15 @@ async function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjec
   }
 }
 
-export const takeStore = {
-  all: () => transaction<Take[]>('readonly', (store) => store.getAll()),
-  put: (take: Take) => transaction<IDBValidKey>('readwrite', (store) => store.put(take)),
-  remove: (id: string) => transaction<undefined>('readwrite', (store) => store.delete(id) as IDBRequest<undefined>),
-  clear: () => transaction<undefined>('readwrite', (store) => store.clear() as IDBRequest<undefined>),
-};
+export function createTakeStore(demo = false) {
+  const databaseName = demo ? DEMO_DB_NAME : REAL_DB_NAME;
+  return {
+    databaseName,
+    all: () => transaction<Take[]>(databaseName, 'readonly', (store) => store.getAll()),
+    put: (take: Take) => transaction<IDBValidKey>(databaseName, 'readwrite', (store) => store.put(take)),
+    remove: (id: string) => transaction<undefined>(databaseName, 'readwrite', (store) => store.delete(id) as IDBRequest<undefined>),
+    clear: () => transaction<undefined>(databaseName, 'readwrite', (store) => store.clear() as IDBRequest<undefined>),
+  };
+}
+
+export const takeStore = createTakeStore();

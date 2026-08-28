@@ -20,15 +20,47 @@ function wav(name: string, frequency: number, seconds: number) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.evaluate(async () => {
-    indexedDB.deleteDatabase('line-take-match');
+    await Promise.all(['line-take-match', 'demo:line-take-match'].map((name) => new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve(); request.onerror = () => resolve(); request.onblocked = () => resolve();
+    })));
     localStorage.clear();
   });
   await page.reload();
 });
 
+test('states the job, audience, next step, and demo action in the first mobile viewport', async ({ page }) => {
+  await expect(page.getByRole('heading', { level: 1, name: 'Compare voice takes with an approved take.' })).toBeVisible();
+  await expect(page.getByText('For indie animators and game creators checking whether recorded character lines match.')).toBeVisible();
+  const demo = page.getByRole('link', { name: 'Try it with sample data' });
+  await expect(demo).toBeVisible();
+  const box = await demo.boundingBox();
+  expect(box && box.y + box.height).toBeLessThanOrEqual(844);
+});
+
+test('moves focus to main content from the skip link', async ({ page }) => {
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: 'Skip to main content' });
+  await expect(skip).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main')).toBeFocused();
+});
+
+test('serves route-specific metadata and the designed not-found page', async ({ page }) => {
+  await page.goto('/demo/');
+  await expect(page).toHaveTitle('Demo — Line Take Match');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://line-take-match.sociobot.in/demo/');
+  await page.goto('/privacy/');
+  await expect(page).toHaveTitle('Privacy — Line Take Match');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /social-preview\.jpg$/);
+  await page.goto('/404/');
+  await expect(page).toHaveTitle('Page not found — Line Take Match');
+  await expect(page.getByRole('heading', { level: 1, name: 'This page missed its cue.' })).toBeVisible();
+});
+
 test('imports, compares, flags, persists, and works offline', async ({ page, context }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-  await expect(page.getByText('Your cue sheet is quiet')).toBeVisible();
+  await expect(page.getByText('Your takes will appear here')).toBeVisible();
   await page.locator('#consent').check();
   await page.locator('#audio-files').setInputFiles([
     wav('door-warning_take-01.wav', 180, 1),
@@ -36,10 +68,10 @@ test('imports, compares, flags, persists, and works offline', async ({ page, con
   ]);
   await expect(page.getByText('2 files processed locally.')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.take-card')).toHaveCount(2);
-  await page.getByRole('button', { name: 'Set reference' }).first().click();
-  await expect(page.getByText('Approved reference')).toBeVisible();
+  await page.getByRole('button', { name: 'Set as approved' }).first().click();
+  await expect(page.getByText('Approved take', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Flag review' }).last().click();
-  await expect(page.getByText('Take flagged for the handoff.')).toBeVisible();
+  await expect(page.getByText('Take flagged for review.')).toBeVisible();
   await page.reload();
   await expect(page.locator('.take-card')).toHaveCount(2);
   await expect(page.getByRole('button', { name: '⚑ Flagged' })).toBeVisible();
@@ -51,7 +83,7 @@ test('imports, compares, flags, persists, and works offline', async ({ page, con
   await page.reload();
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Takeboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Take list', exact: true })).toBeVisible();
   await expect(page.locator('.take-card')).toHaveCount(2);
 });
 
@@ -82,10 +114,10 @@ test('keeps keyboard focus on the updated reference, flag, and line controls', a
   await expect(page.locator('[data-line]')).toHaveCount(2, { timeout: 15_000 });
   await expect(page.locator('.take-card')).toHaveCount(1);
 
-  const reference = page.getByRole('button', { name: 'Set reference' }).first();
+  const reference = page.getByRole('button', { name: 'Set as approved' }).first();
   await reference.focus();
   await reference.press('Enter');
-  await expect(page.getByRole('button', { name: '✓ Reference' }).first()).toBeFocused();
+  await expect(page.getByRole('button', { name: '✓ Approved' }).first()).toBeFocused();
 
   const flag = page.getByRole('button', { name: 'Flag review' }).first();
   await flag.focus();
@@ -100,12 +132,12 @@ test('keeps keyboard focus on the updated reference, flag, and line controls', a
 
 test('keeps an unverified license locked and explains an invalid token inside the dialog', async ({ page }) => {
   await page.route('**/api/v1/products/line-take-match/verify?license=*', (route) => route.abort());
-  await page.getByRole('button', { name: 'Unlock studio' }).click();
+  await page.getByRole('button', { name: 'Studio — $19' }).click();
   const dialog = page.locator('#license-dialog');
   await dialog.locator('#license-token').fill('never-verified');
   await dialog.getByRole('button', { name: 'Verify and restore' }).click();
   await expect(dialog.getByRole('alert')).toContainText('Studio stays locked until it is verified.');
-  await expect(page.getByRole('button', { name: 'Unlock studio' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Studio — $19' })).toBeVisible();
 
   await page.unrouteAll({ behavior: 'wait' });
   await page.route('**/api/v1/products/line-take-match/verify?license=*', (route) => route.fulfill({ json: { valid: false, reason: 'invalid' } }));
@@ -119,7 +151,7 @@ test('captures a verified checkout return token and removes it from the address 
   await page.route('**/api/v1/products/line-take-match/verify?license=returned-token', (route) => route.fulfill({ json: { valid: true, reason: 'ok' } }));
   await page.goto('/?campaign=summer&license=returned-token');
 
-  await expect(page.getByRole('button', { name: 'Studio unlocked' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Studio active' })).toBeVisible();
   await expect(page).not.toHaveURL(/license=/);
   await expect(page).toHaveURL(/campaign=summer/);
 });
@@ -130,7 +162,22 @@ test('provides 44px home and legal link targets', async ({ page }) => {
   expect(homeBox?.height).toBeGreaterThanOrEqual(44);
 
   await page.goto('/terms/');
-  const privacyBox = await page.getByRole('link', { name: 'Privacy' }).boundingBox();
+  const privacyBox = await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Privacy' }).boundingBox();
   expect(privacyBox?.width).toBeGreaterThanOrEqual(44);
   expect(privacyBox?.height).toBeGreaterThanOrEqual(44);
+});
+
+test('has no serious accessibility issues, console errors, or mobile overflow on public routes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  for (const route of ['/', '/?demo=1', '/privacy/', '/terms/', '/404/']) {
+    await page.goto(route);
+    await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('main')).toHaveCount(1);
+    const accessibility = await new AxeBuilder({ page }).analyze();
+    expect(accessibility.violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  }
+  expect(errors).toEqual([]);
 });

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "demo-sandbox",
+    "claim": "The one-click demo opens three sample takes and never changes the real take list.",
+    "where": "landing demo action, demo banner, README",
+    "test": "npm run test:claims -- --grep @claim:demo-sandbox",
+    "sandbox": "fresh browser context at /?demo=1; place a sentinel in the real database, assert sample rows in the separate demo database, reset and exit, then assert the sentinel survives while demo rows are cleared"
+  },
+  {
+    "id": "local-private",
+    "claim": "Audio analysis and take data stay in the browser; recordings are not uploaded.",
+    "where": "landing facts, privacy page, README, footer",
+    "test": "npm run test:claims -- --grep @claim:local-private",
+    "sandbox": "fresh demo; intercept the complete import flow, assert same-origin requests only, then assert the real take list stays empty"
+  },
+  {
+    "id": "no-voice-services",
+    "claim": "The app does not transcribe, generate, or clone voices.",
+    "where": "landing boundaries, privacy page, README",
+    "test": "npm run test:claims -- --grep @claim:no-voice-services",
+    "sandbox": "fresh demo; exercise local analysis with all requests captured, assert no external service calls, and verify the plain boundary copy"
+  },
+  {
+    "id": "offline-reload",
+    "claim": "The app works offline after the first visit.",
+    "where": "landing facts, README",
+    "test": "npm run test:claims -- --grep @claim:offline-reload",
+    "sandbox": "fresh demo; wait for service-worker control, go offline, reload, and assert all three sample takes remain"
+  },
+  {
+    "id": "filename-grouping",
+    "claim": "Numbered take filenames group by dialogue line and each line remains editable.",
+    "where": "import help, workflow, README",
+    "test": "npm run test:claims -- --grep @claim:filename-grouping",
+    "sandbox": "fresh demo; import two generated WAV files with numbered names and assert one editable two-take line group"
+  },
+  {
+    "id": "comparison-cues",
+    "claim": "The app compares level, pace, pauses, and pitch range against an approved take as review cues.",
+    "where": "landing workflow, take list, README",
+    "test": "npm run test:claims -- --grep @claim:comparison-cues",
+    "sandbox": "fresh demo; assert the approved take and four named measurements with observable differences and review-cue labels"
+  },
+  {
+    "id": "csv-export",
+    "claim": "CSV export includes one row per take with review details and measurements.",
+    "where": "landing workflow, README",
+    "test": "npm run test:claims -- --grep @claim:csv-export",
+    "sandbox": "fresh demo; download CSV and assert its header plus exactly three sample rows including the flagged take"
+  },
+  {
+    "id": "free-limit",
+    "claim": "Free mode supports 12 takes and CSV export.",
+    "where": "landing facts, Studio details, README, terms",
+    "test": "npm run test:claims -- --grep @claim:free-limit",
+    "sandbox": "enter from fresh demo, start a real empty list, import 12 generated WAVs, assert CSV stays enabled, and assert take 13 is rejected"
+  },
+  {
+    "id": "studio-backup",
+    "claim": "A $19 one-time Studio license adds unlimited takes and backups that include audio.",
+    "where": "landing Studio section, Studio details, README, terms",
+    "test": "npm run test:claims -- --grep @claim:studio-backup",
+    "sandbox": "enter from fresh demo, use a recorded verified-license verdict, import 13 generated WAVs, and assert the downloaded backup contains all audio data"
+  },
+  {
+    "id": "billing-api",
+    "claim": "Studio checkout and license verification use only the Sociobot billing product routes.",
+    "where": "Studio details, privacy page, README",
+    "test": "npm run test:claims -- --grep @claim:billing-api",
+    "sandbox": "enter from fresh demo; assert the production checkout URL, intercept the exact verification URL, and reject a recorded invalid token"
+  }
+]

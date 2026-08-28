@@ -1,4 +1,4 @@
-const CACHE = 'line-take-match-v1';
+const CACHE = 'line-take-match-v2';
 const PRECACHE = self.__PRECACHE_MANIFEST__ || ['/', '/offline.html', '/manifest.webmanifest', '/assets/icon.svg'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
@@ -11,7 +11,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).then((response) => { const copy = response.clone(); caches.open(CACHE).then((cache) => cache.put(event.request, copy)); return response; }).catch(async () => (await caches.match(event.request)) || (await caches.match('/')) || caches.match('/offline.html')));
+    event.respondWith(fetch(event.request).then((response) => { const copy = response.clone(); caches.open(CACHE).then((cache) => cache.put(event.request, copy)); return response; }).catch(async () => {
+      const route = url.pathname.endsWith('/') ? `${url.pathname}index.html` : event.request;
+      return (await caches.match(event.request)) || (await caches.match(route)) || (await caches.match('/index.html')) || caches.match('/offline.html');
+    }));
     return;
   }
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => { if (response.ok) { const copy = response.clone(); caches.open(CACHE).then((cache) => cache.put(event.request, copy)); } return response; })));

@@ -17,4 +17,13 @@ describe('static delivery policy', () => {
     const injector = await readFile('scripts/inject-sw.mjs', 'utf8');
     expect(injector).toContain("!file.endsWith('staticwebapp.config.json')");
   });
+
+  it('serves the designed not-found page with a real 404 response', async () => {
+    const config = JSON.parse(await readFile('public/staticwebapp.config.json', 'utf8')) as {
+      navigationFallback?: unknown;
+      responseOverrides?: Record<string, { rewrite: string; statusCode: number }>;
+    };
+    expect(config.navigationFallback).toBeUndefined();
+    expect(config.responseOverrides?.['404']).toEqual({ rewrite: '/404/index.html', statusCode: 404 });
+  });
 });

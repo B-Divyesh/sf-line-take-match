@@ -115,7 +115,7 @@ export async function analyzeFile(file: Blob, onProgress?: AnalysisProgress): Pr
   } catch (error) {
     throw new Error(error instanceof Error && error.message.includes('no samples')
       ? error.message
-      : 'This file could not be decoded. Try a standard WAV, MP3, M4A, OGG, or FLAC file.');
+      : 'This file could not be decoded. Try WAV or another format your browser can play.');
   } finally {
     void context.close();
   }

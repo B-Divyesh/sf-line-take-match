@@ -1,47 +1,56 @@
-# Line Take Match
+# Compare voice takes with an approved take
 
-Line Take Match is a private, local-first takeboard for indie animators and game creators. Import creator-owned dialogue takes, group them by line, choose the approved reference, compare level/pace/pause/pitch-range cues, flag mismatches, and export a handoff CSV. It does not transcribe, generate, or clone voices.
+Line Take Match helps indie animators and game creators compare recorded dialogue with an approved take. It measures level, pace, pauses, and pitch range as review cues. It does not transcribe, generate, clone, or upload voices.
 
-All audio analysis and project storage happens in the browser. The installable PWA works offline after its first load. Free mode supports 12 takes with unlimited CSV exports; the optional $19 one-time Studio license adds unlimited takes and audio-inclusive project backups through Sociobot billing.
+Audio and take data stay in your browser. After one online visit, you can install the app and use it offline.
 
-Live: <https://line-take-match.sociobot.in>
+Free mode supports 12 takes and CSV export. Studio costs $19 once. It adds unlimited takes and backups that include audio.
+
+Live app: <https://line-take-match.sociobot.in>
+
+One-click demo: <https://line-take-match.sociobot.in/?demo=1>
+
+The demo opens three sample dialogue takes. It uses separate browser storage and clears that storage when you start for real.
 
 ## Run locally
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Open the Vite URL, confirm that you have the performer’s consent, and import WAV, MP3, M4A, OGG, or FLAC files. Filenames ending in patterns such as `_take-03` or `_v2` are grouped automatically; every line assignment remains editable.
+Open the shown local URL. Confirm performer consent, then import audio your browser can play. WAV is the safest choice.
+
+Numbered filenames such as `_take-03` or `_v2` group by line. You can edit every line name.
 
 ## Test and build
 
 ```bash
 npm test
 npm run build
+npm run test:claims
 npm run test:e2e
 ```
 
-`npm run build` is the exact production command. It type-checks the app, builds all entry points, injects the versioned offline precache list, and writes the deployable static site to `dist/` with `dist/index.html` at its root. The browser suite uses Playwright 1.58.2 and exercises desktop, 390px mobile, IndexedDB persistence, accessibility, and offline reload.
+The production command checks types and builds every page. It then adds the current files to the offline cache. Deploy the generated `dist/` directory.
 
-To inspect the production output:
-
-```bash
-npm run preview
-```
+The browser suite uses Playwright 1.58.2. It covers desktop, 390px mobile, browser storage, accessibility, privacy, and offline reload.
 
 ## Data and privacy
 
-- Recordings, metrics, flags, line labels, notes, and licenses stay in browser storage.
-- Audio decoding and measurements use the Web Audio API on-device.
-- CSV exports remain free. Studio JSON backups contain the audio itself; treat them like source recordings.
-- The only optional API request verifies a Studio license with Sociobot. There are no analytics, trackers, third-party fonts, runtime CDNs, transcription calls, or generation calls.
+- Recordings, measurements, flags, line names, notes, and licenses stay in browser storage.
+- The demo uses the separate `demo:line-take-match` database.
+- CSV exports stay free.
+- Studio backups contain the audio itself. Treat them like source recordings.
+- License verification is the only optional request to Sociobot.
+- The app has no analytics, trackers, remote fonts, transcription calls, or generation calls.
 
-See [privacy](./privacy/index.html), [terms](./terms/index.html), [the researched brief](./.factory/brief.json), and [the product-specific visual system](./.factory/design.md).
+Read the [privacy policy](./privacy/index.html), [terms](./terms/index.html), [research brief](./.factory/brief.json), and [visual system](./.factory/design.md).
 
 ## Deployment
 
-Deploy the contents of `dist/` to any HTTPS static host with clean-directory paths enabled. The factory owns infrastructure, DNS, and registration of the paid product; this repository does not provision them.
+Deploy `dist/` to an HTTPS static host that serves directory index files. Unknown paths must use `404/index.html` with status 404.
+
+The factory owns infrastructure, DNS, and paid-product registration. This repository does not contain billing credentials.
 
 Licensed under the [MIT License](./LICENSE).

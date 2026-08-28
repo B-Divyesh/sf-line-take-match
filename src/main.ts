@@ -1,6 +1,7 @@
 import './styles.css';
 import { analyzeFile } from './analysis';
-import { takeStore } from './db';
+import { createTakeStore } from './db';
+import { makeDemoTakes } from './demo';
 import { download, makeBackup, readBackup, toCsv } from './export';
 import { captureReturnedLicense, checkoutUrl, clearLicense, hasOptimisticUnlock, saveLicense, verifyLicense } from './license';
 import { inferLineName, uniqueLines } from './naming';
@@ -8,6 +9,8 @@ import type { Metrics, Take } from './types';
 
 const FREE_LIMIT = 12;
 const app = document.querySelector<HTMLDivElement>('#app')!;
+const demoMode = /^\/demo\/?$/.test(location.pathname) || new URLSearchParams(location.search).get('demo') === '1';
+const takeStore = createTakeStore(demoMode);
 const urls = new Map<string, string>();
 let takes: Take[] = [];
 let selectedLine = '';
@@ -24,14 +27,25 @@ let noticeTimer = 0;
 let focusAfterRender = '';
 let licenseError = '';
 let licenseToken = '';
+let licenseTrigger: HTMLElement | null = null;
 
-captureReturnedLicense();
-unlocked = hasOptimisticUnlock();
+if (demoMode) setDemoMetadata();
+if (!demoMode) captureReturnedLicense();
+unlocked = demoMode || hasOptimisticUnlock();
+document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  history.replaceState(null, '', `${location.pathname}${location.search}#main`);
+  document.querySelector<HTMLElement>('#main')?.focus();
+});
 void start();
 
 async function start() {
   try {
     takes = await takeStore.all();
+    if (demoMode && takes.length === 0) {
+      takes = makeDemoTakes();
+      await Promise.all(takes.map((take) => takeStore.put(take)));
+    }
     takes.sort((a, b) => a.createdAt - b.createdAt);
     selectedLine = uniqueLines(takes)[0] ?? '';
   } catch {
@@ -40,7 +54,7 @@ async function start() {
     loading = false;
     render();
   }
-  if (localStorage.getItem('sb_license:line-take-match')) {
+  if (!demoMode && localStorage.getItem('sb_license:line-take-match')) {
     const verification = await verifyLicense();
     const valid = verification === 'valid';
     if (valid !== unlocked) {
@@ -65,45 +79,31 @@ function render() {
   app.innerHTML = `
     <header class="site-header">
       <a class="brand" href="/" aria-label="Line Take Match home"><span class="brand-mark" aria-hidden="true">LT</span><span>Line Take Match</span></a>
-      <div class="header-actions">
-        <span class="network-pill" id="network-state"><span aria-hidden="true">●</span> ${navigator.onLine ? 'Local mode' : 'Offline · ready'}</span>
-        <button class="button quiet" data-action="show-license">${unlocked ? 'Studio unlocked' : 'Unlock studio'}</button>
-      </div>
+      <nav class="site-nav" aria-label="Primary"><a href="/?demo=1" ${demoMode ? 'aria-current="page"' : ''}>Demo</a><a href="/privacy/">Privacy</a>${demoMode ? '' : `<button class="button quiet" data-action="show-license">${unlocked ? 'Studio active' : 'Studio — $19'}</button>`}</nav>
     </header>
-    <main id="main">
-      <section class="hero ${takes.length ? 'hero-compact' : ''}" aria-labelledby="page-title">
+    ${demoMode ? demoBannerMarkup() : ''}
+    <main id="main" tabindex="-1">
+      ${demoMode ? demoIntroMarkup() : `<section class="hero ${takes.length ? 'hero-compact' : ''}" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="eyebrow">Private take comparison</p>
-          <h1 id="page-title">Hear the line.<br><em>See the drift.</em></h1>
-          <p class="lede">Match level, pace, pauses, and pitch movement against the take your performer approved. Nothing is uploaded. Nothing is cloned.</p>
-          <div class="trust-strip" aria-label="Privacy summary"><span>On-device analysis</span><span>Creator-owned audio</span><span>Review cues, not scores</span></div>
+          <p class="eyebrow">Voice take comparison</p>
+          <h1 id="page-title">Compare voice takes<br><em>with an approved take.</em></h1>
+          <p class="lede">For indie animators and game creators checking whether recorded character lines match.</p>
+          <div class="hero-actions"><a class="button primary" href="/?demo=1">Try it with sample data</a><a class="button secondary" href="#import-title">Import audio takes</a></div>
+          <p class="action-note">The demo opens three dialogue takes to compare.</p>
+          <div class="trust-strip" aria-label="Product facts"><span>Audio stays on this device</span><span>Works offline after the first visit</span><span>Free for 12 takes · Studio costs $19 once</span></div>
         </div>
         <picture class="hero-art">
           <source srcset="/assets/hero-night-booth.webp" type="image/webp">
           <img src="/assets/hero-night-booth.webp" width="768" height="512" fetchpriority="high" alt="An empty voice booth glowing behind a rain-soaked night-market window, with a microphone and waveform-shaped paper strips">
         </picture>
-      </section>
+      </section>`}
 
-      <section class="import-panel" aria-labelledby="import-title">
-        <div>
-          <p class="section-kicker">01 / Bring your takes</p>
-          <h2 id="import-title">Drop in a session</h2>
-          <p>WAV, MP3, M4A, OGG, or FLAC. Names like <code>door-warning_take-03.wav</code> group automatically.</p>
-        </div>
-        <label class="consent-check"><input id="consent" type="checkbox" ${consent ? 'checked' : ''}><span>I have the performer’s consent and rights to review these recordings.</span></label>
-        <label class="drop-zone ${processing ? 'is-processing' : ''}" id="drop-zone" tabindex="0">
-          <input id="audio-files" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac" multiple ${processing ? 'disabled' : ''}>
-          <span class="drop-icon" aria-hidden="true">↳</span>
-          <strong>${processing || 'Choose audio or drop files here'}</strong>
-          <span>${unlocked ? 'Unlimited studio board' : `${freeRemaining} of ${FREE_LIMIT} free slots remain`}</span>
-        </label>
-        ${error ? `<p class="message error" role="alert">${escapeHtml(error)}</p>` : ''}
-      </section>
-
-      ${loading ? loadingMarkup() : takes.length ? boardMarkup(visibleLines, current, reference, flagged) : emptyMarkup()}
+      ${demoMode ? (loading ? loadingMarkup() : boardMarkup(visibleLines, current, reference, flagged)) : importMarkup(freeRemaining)}
+      ${demoMode ? importMarkup(freeRemaining) : (loading ? loadingMarkup() : takes.length ? boardMarkup(visibleLines, current, reference, flagged) : emptyMarkup())}
+      ${demoMode ? '' : informationMarkup()}
       ${licenseMarkup()}
     </main>
-    <footer><p>Built for human direction, not voice imitation. Hero scene is original AI-generated artwork.</p><nav aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a></nav></footer>
+    ${footerMarkup()}
     <div class="toast ${notice ? 'is-visible' : ''}" role="status" aria-live="polite">${escapeHtml(notice)} ${undoTake ? '<button data-action="undo">Undo</button>' : ''}</div>
   `;
   bindEvents();
@@ -116,17 +116,53 @@ function render() {
   }
 }
 
+function importMarkup(freeRemaining: number) {
+  return `<section class="import-panel" aria-labelledby="import-title">
+        <div>
+          <p class="section-kicker">${demoMode ? '03' : '01'} / Import</p>
+          <h2 id="import-title">Import audio takes</h2>
+          <p>Choose audio files your browser can play. WAV is the safest choice. Filenames such as <code>door-warning_take-03.wav</code> group by line.</p>
+        </div>
+        <label class="consent-check"><input id="consent" type="checkbox" ${consent ? 'checked' : ''}><span>I have the performer’s consent and rights to review these recordings.</span></label>
+        <label class="drop-zone ${processing ? 'is-processing' : ''}" id="drop-zone" tabindex="0">
+          <input id="audio-files" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac" multiple ${processing ? 'disabled' : ''}>
+          <span class="drop-icon" aria-hidden="true">↳</span>
+          <strong>${processing || 'Import audio takes'}</strong>
+          <span>${demoMode ? 'Imports stay inside this demo' : unlocked ? 'Studio has no take limit' : `${freeRemaining} of ${FREE_LIMIT} free takes remain`}</span>
+        </label>
+        ${error ? `<p class="message error" role="alert">${escapeHtml(error)}</p>` : ''}
+      </section>`;
+}
+
+function demoBannerMarkup() {
+  return `<aside class="demo-banner" aria-label="Demo controls"><strong>Demo — sample data, nothing is saved to your take list</strong><div><button class="button secondary" data-action="reset-demo">Reset demo</button><button class="button primary" data-action="start-real">Start for real</button></div></aside>`;
+}
+
+function demoIntroMarkup() {
+  return `<section class="demo-intro" aria-labelledby="page-title"><p class="eyebrow">Sample take list</p><h1 id="page-title">Compare these sample voice takes.</h1><p>One approved read and two alternatives show the differences to review.</p></section>`;
+}
+
+function informationMarkup() {
+  return `<section class="how-it-works" aria-labelledby="how-title"><p class="section-kicker">03 / Workflow</p><h2 id="how-title">Compare recorded takes</h2><ol><li><strong>Import audio.</strong><span>Filenames group takes for the same line.</span></li><li><strong>Choose the approved take.</strong><span>Compare level, pace, pauses, and pitch range.</span></li><li><strong>Flag and export.</strong><span>Add notes and download a CSV for your team.</span></li></ol></section>
+  <section class="boundaries" aria-labelledby="boundaries-title"><p class="section-kicker">04 / Boundaries</p><h2 id="boundaries-title">Keep the performance human</h2><p>Line Take Match does not transcribe, generate, or clone voices. Measurements are review cues, never performance scores.</p></section>
+  <section class="studio-strip" aria-labelledby="studio-title"><div><p class="section-kicker">05 / Studio</p><h2 id="studio-title">Keep larger take lists together</h2><p>Free mode includes 12 takes and CSV exports. Studio costs $19 once and adds unlimited takes and audio backups.</p></div><button class="button primary" data-action="show-license">See Studio details</button></section>`;
+}
+
+function footerMarkup() {
+  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · polish-1</span></nav></footer>`;
+}
+
 function loadingMarkup() {
-  return `<section class="state-panel" aria-live="polite"><span class="meter" aria-hidden="true"></span><h2>Opening your local takeboard…</h2></section>`;
+  return `<section class="state-panel" aria-live="polite"><span class="meter" aria-hidden="true"></span><h2>Opening your take list…</h2></section>`;
 }
 
 function emptyMarkup() {
-  return `<section class="empty-state" aria-labelledby="empty-title"><div class="signal-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div><p class="section-kicker">02 / Compare</p><h2 id="empty-title">Your cue sheet is quiet</h2><p>Import two or more takes of a line. Pick the approved performance as reference, then use the measurement differences to guide a human listen.</p><ol><li>Group takes by filename</li><li>Choose an approved reference</li><li>Flag mismatches and export the handoff</li></ol></div></section>`;
+  return `<section class="empty-state" aria-labelledby="empty-title"><div class="signal-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div><p class="section-kicker">02 / Compare</p><h2 id="empty-title">Your takes will appear here</h2><p>Import two or more recordings of one line. Choose the approved take, then listen to any measured differences.</p><ol><li>Group takes by filename</li><li>Choose the take to compare against</li><li>Flag a take and export CSV</li></ol></div></section>`;
 }
 
 function boardMarkup(lines: string[], current: Take[], reference: Take | undefined, flagged: number) {
   return `<section class="board" aria-labelledby="board-title">
-    <div class="board-heading"><div><p class="section-kicker">02 / Compare</p><h2 id="board-title">Takeboard</h2></div><div class="summary"><span><b>${uniqueLines(takes).length}</b> lines</span><span><b>${takes.length}</b> takes</span><span><b>${flagged}</b> flagged</span></div></div>
+    <div class="board-heading"><div><p class="section-kicker">02 / Compare</p><h2 id="board-title">Take list</h2></div><div class="summary"><span><b>${uniqueLines(takes).length}</b> lines</span><span><b>${takes.length}</b> takes</span><span><b>${flagged}</b> flagged</span></div></div>
     <div class="board-tools">
       <label class="search"><span>Find a line</span><input id="search" type="search" value="${escapeAttr(search)}" placeholder="Search line names"></label>
       <div class="export-actions"><button class="button secondary" data-action="import-backup">Import backup</button><input id="backup-file" type="file" accept="application/json,.json" hidden><button class="button secondary" data-action="backup" ${unlocked ? '' : 'aria-describedby="backup-lock"'}>Back up project${unlocked ? '' : ' · Studio'}</button><button class="button primary" data-action="csv">Export CSV</button></div>
@@ -135,12 +171,12 @@ function boardMarkup(lines: string[], current: Take[], reference: Take | undefin
       <aside class="line-list" aria-label="Dialogue lines"><div class="line-list-label">Dialogue lines <span>${lines.length}</span></div>${lines.length ? lines.map(lineButton).join('') : '<p class="no-results">No lines match that search.</p>'}</aside>
       <div class="take-area">
         ${selectedLine ? `<div class="line-heading"><div><p>Selected line</p><h3>${escapeHtml(selectedLine)}</h3></div><span>${current.length} take${current.length === 1 ? '' : 's'}</span></div>
-        <p class="cue-note"><span aria-hidden="true">◎</span>${reference ? `Differences are relative to “${escapeHtml(reference.name)}”. Listen before you decide.` : 'Set one approved take as the reference to reveal differences.'}</p>
+        <p class="cue-note"><span aria-hidden="true">◎</span>${reference ? `Differences use “${escapeHtml(reference.name)}” as the approved take. Listen before you decide.` : 'Choose one approved take to reveal differences.'}</p>
         <div class="measure-legend" aria-hidden="true"><span>Take & waveform</span><span>Level</span><span>Pace</span><span>Pauses</span><span>Pitch range</span><span>Actions</span></div>
         <div class="takes">${current.map((take) => takeMarkup(take, reference)).join('')}</div>` : ''}
       </div>
     </div>
-    <p id="backup-lock" class="visually-hidden">Project backup is included with the one-time Studio unlock. CSV export remains free.</p>
+    <p id="backup-lock" class="visually-hidden">Project backup requires Studio. CSV export remains free.</p>
   </section>`;
 }
 
@@ -156,7 +192,7 @@ function takeMarkup(take: Take, reference?: Take) {
   const flaggedCues = reference && reference.id !== take.id ? reviewCueCount(metrics, reference.metrics) : 0;
   return `<article class="take-card ${take.reference ? 'is-reference' : ''} ${take.flagged ? 'is-flagged' : ''}">
     <div class="take-identity">
-      <div class="take-label"><span>${take.reference ? 'Approved reference' : take.flagged ? 'Flagged for review' : flaggedCues ? `${flaggedCues} measurement cue${flaggedCues > 1 ? 's' : ''}` : 'Take'}</span><strong>${escapeHtml(take.name)}</strong></div>
+      <div class="take-label"><span>${take.reference ? 'Approved take' : take.flagged ? 'Flagged for review' : flaggedCues ? `${flaggedCues} measurement cue${flaggedCues > 1 ? 's' : ''}` : 'Take'}</span><strong>${escapeHtml(take.name)}</strong></div>
       ${objectUrl ? `<audio controls preload="none" src="${objectUrl}" aria-label="Play ${escapeAttr(take.name)}"></audio>` : '<p class="missing-audio">Audio missing from imported backup</p>'}
       ${waveform(metrics, take.name)}
       <label class="line-field"><span>Line group</span><input data-field="line" data-id="${take.id}" value="${escapeAttr(take.line)}"></label>
@@ -166,9 +202,9 @@ function takeMarkup(take: Take, reference?: Take) {
     ${metricCell('Pauses', `${Math.round(metrics.pauseRatio * 100)}%`, delta(metrics.pauseRatio * 100, reference ? reference.metrics.pauseRatio * 100 : undefined, ' pts'), metrics.pauseRatio * 100)}
     ${metricCell('Pitch range', metrics.pitchRange == null ? '—' : `${metrics.pitchRange.toFixed(1)} st`, metrics.pitchRange == null ? 'No stable pitch found' : delta(metrics.pitchRange, reference?.metrics.pitchRange ?? undefined, ' st'), Math.min(100, (metrics.pitchRange ?? 0) * 8))}
     <div class="take-actions">
-      <button class="chip ${take.reference ? 'active' : ''}" data-action="reference" data-id="${take.id}" data-focus-key="reference:${take.id}" ${take.reference ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${take.reference ? '✓ Reference' : 'Set reference'}</button>
+      <button class="chip ${take.reference ? 'active' : ''}" data-action="reference" data-id="${take.id}" data-focus-key="reference:${take.id}" ${take.reference ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${take.reference ? '✓ Approved' : 'Set as approved'}</button>
       <button class="chip ${take.flagged ? 'warning' : ''}" data-action="flag" data-id="${take.id}" data-focus-key="flag:${take.id}" aria-pressed="${take.flagged}">${take.flagged ? '⚑ Flagged' : 'Flag review'}</button>
-      <label class="note-field"><span>Handoff note</span><input data-field="note" data-id="${take.id}" value="${escapeAttr(take.note)}" placeholder="Direction note"></label>
+      <label class="note-field"><span>Review note</span><input data-field="note" data-id="${take.id}" value="${escapeAttr(take.note)}" placeholder="Direction note"></label>
       <button class="icon-button" data-action="remove" data-id="${take.id}" aria-label="Remove ${escapeAttr(take.name)}">Remove</button>
     </div>
   </article>`;
@@ -183,10 +219,10 @@ function waveform(metrics: Metrics, name: string) {
 }
 
 function delta(value: number, reference: number | undefined, suffix: string, percent = false) {
-  if (reference == null) return 'Choose reference';
+  if (reference == null) return 'Choose approved take';
   const difference = percent && reference ? ((value - reference) / reference) * 100 : value - reference;
-  if (Math.abs(difference) < 0.05) return 'Matches reference';
-  return `${difference > 0 ? '+' : ''}${difference.toFixed(1)}${percent ? '%' : suffix} vs ref`;
+  if (Math.abs(difference) < 0.05) return 'Matches approved take';
+  return `${difference > 0 ? '+' : ''}${difference.toFixed(1)}${percent ? '%' : suffix} difference`;
 }
 
 function reviewCueCount(metrics: Metrics, reference: Metrics) {
@@ -199,7 +235,7 @@ function reviewCueCount(metrics: Metrics, reference: Metrics) {
 }
 
 function licenseMarkup() {
-  return `<dialog id="license-dialog" class="license-dialog"><button class="dialog-close" data-action="close-license" aria-label="Close unlock panel">×</button><p class="section-kicker">Studio unlock</p><h2>${unlocked ? 'Your full board is open' : 'Keep the whole session together'}</h2><p>Free mode compares up to ${FREE_LIMIT} takes and always includes CSV export. A <strong>$19 one-time purchase</strong> adds unlimited takes and portable project backups. No subscription.</p><ul><li>Unlimited local takes and lines</li><li>Audio-inclusive JSON project backup</li><li>Core comparison and CSV stay free</li></ul>${unlocked ? '<p class="message success">License active on this device.</p><button class="button quiet" data-action="clear-license">Remove license from device</button>' : `<a class="button primary buy" href="${checkoutUrl}">Buy Studio — $19 once</a><form id="license-form"><label><span>Have a license? Paste it here</span><input id="license-token" value="${escapeAttr(licenseToken)}" required aria-describedby="license-feedback" autocomplete="off" spellcheck="false"></label><button class="button secondary" type="submit">Verify and restore</button></form>${licenseError ? `<p id="license-feedback" class="message error" role="alert" aria-live="assertive">${escapeHtml(licenseError)}</p>` : '<p id="license-feedback" class="visually-hidden">Paste your Studio license token, then verify and restore it.</p>'}`}<p class="legal-note">Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the license. See <a href="/privacy/">privacy</a> and <a href="/terms/">terms</a>.</p></dialog>`;
+  return `<dialog id="license-dialog" class="license-dialog"><button class="dialog-close" data-action="close-license" aria-label="Close Studio details">×</button><p class="section-kicker">Studio license</p><h2>${unlocked ? 'Your full take list is open' : 'Keep all your takes together'}</h2><p>Free mode compares up to ${FREE_LIMIT} takes and includes CSV export. Studio costs <strong>$19 once</strong>. It adds unlimited takes and portable project backups.</p><ul><li>Unlimited takes and lines on this device</li><li>Download a backup with your audio</li><li>Core comparison and CSV stay free</li></ul>${unlocked ? '<p class="message success">License active on this device.</p><button class="button quiet" data-action="clear-license">Remove license from device</button>' : `<a class="button primary buy" href="${checkoutUrl}">Buy Studio — $19 once</a><form id="license-form"><label><span>Have a license? Paste it here</span><input id="license-token" value="${escapeAttr(licenseToken)}" required aria-describedby="license-feedback" autocomplete="off" spellcheck="false"></label><button class="button secondary" type="submit">Verify and restore</button></form>${licenseError ? `<p id="license-feedback" class="message error" role="alert" aria-live="assertive">${escapeHtml(licenseError)}</p>` : '<p id="license-feedback" class="visually-hidden">Paste your Studio license token, then verify and restore it.</p>'}`}<p class="legal-note">Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the license. See <a href="/privacy/">privacy</a> and <a href="/terms/">terms</a>.</p></dialog>`;
 }
 
 function bindEvents() {
@@ -225,7 +261,7 @@ async function addFiles(fileList: FileList | null) {
   if (!files.length) { error = 'No supported audio files were selected.'; render(); return; }
   if (!consent) { error = 'Confirm performer consent and recording rights before importing audio.'; render(); return; }
   if (!unlocked && takes.length + files.length > FREE_LIMIT) {
-    error = `Free mode holds ${FREE_LIMIT} takes. Select fewer files or unlock Studio for the full session.`;
+    error = `Free mode holds ${FREE_LIMIT} takes. Select fewer files or buy Studio for a larger take list.`;
     render();
     document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal();
     return;
@@ -261,9 +297,17 @@ async function addFiles(fileList: FileList | null) {
 }
 
 async function handleAction(action: string, id?: string, source?: HTMLElement) {
-  if (action === 'show-license') { document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal(); return; }
-  if (action === 'close-license') { document.querySelector<HTMLDialogElement>('#license-dialog')?.close(); return; }
-  if (action === 'csv') { download(toCsv(takes), `line-take-match-${dateStamp()}.csv`, 'text/csv;charset=utf-8'); notice = 'Handoff CSV exported.'; render(); return; }
+  if (action === 'show-license') { licenseTrigger = source ?? null; document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal(); return; }
+  if (action === 'close-license') { document.querySelector<HTMLDialogElement>('#license-dialog')?.close(); licenseTrigger?.focus(); return; }
+  if (action === 'reset-demo' && demoMode) {
+    urls.forEach((url) => URL.revokeObjectURL(url)); urls.clear();
+    await takeStore.clear(); takes = makeDemoTakes(); await Promise.all(takes.map((take) => takeStore.put(take)));
+    selectedLine = 'door warning'; search = ''; notice = 'Demo reset to the three sample takes.'; render(); return;
+  }
+  if (action === 'start-real' && demoMode) {
+    await takeStore.clear(); location.assign('/'); return;
+  }
+  if (action === 'csv') { download(toCsv(takes), `line-take-match-${dateStamp()}.csv`, 'text/csv;charset=utf-8'); notice = 'CSV exported.'; render(); return; }
   if (action === 'backup') {
     if (!unlocked) { document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal(); return; }
     processing = 'Packing local audio into your backup…'; render();
@@ -276,9 +320,9 @@ async function handleAction(action: string, id?: string, source?: HTMLElement) {
   if (!take) return;
   if (action === 'reference') {
     takes.filter((item) => item.line === take.line).forEach((item) => { item.reference = item.id === take.id; void takeStore.put(item); });
-    notice = `${take.name} is now the reference.`;
+    notice = `${take.name} is now the approved take.`;
   } else if (action === 'flag') {
-    take.flagged = !take.flagged; await takeStore.put(take); notice = take.flagged ? 'Take flagged for the handoff.' : 'Review flag removed.';
+    take.flagged = !take.flagged; await takeStore.put(take); notice = take.flagged ? 'Take flagged for review.' : 'Review flag removed.';
   } else if (action === 'remove') {
     if (!confirm(`Remove “${take.name}” from this device? You can undo for 8 seconds.`)) return;
     takes = takes.filter((item) => item.id !== take.id); await takeStore.remove(take.id); undoTake = take; notice = `${take.name} removed.`;
@@ -358,6 +402,17 @@ function registerServiceWorker() {
 
 window.addEventListener('online', () => render());
 window.addEventListener('offline', () => { notice = 'You’re offline. Your saved board and analysis still work.'; render(); });
+
+function setDemoMetadata() {
+  document.title = 'Demo — Line Take Match';
+  const description = 'Compare three sample dialogue takes in an isolated Line Take Match demo.';
+  const canonical = 'https://line-take-match.sociobot.in/demo/';
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', description);
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute('href', canonical);
+  document.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]').forEach((meta) => meta.content = document.title);
+  document.querySelectorAll<HTMLMetaElement>('meta[property="og:description"], meta[name="twitter:description"]').forEach((meta) => meta.content = description);
+  document.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.setAttribute('content', canonical);
+}
 
 const dateStamp = () => new Date().toISOString().slice(0, 10);
 const escapeHtml = (value: string) => value.replace(/[&<>"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]!);
