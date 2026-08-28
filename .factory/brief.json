@@ -3,9 +3,28 @@
   "title": "Line Take Match",
   "territory": "games-creative",
   "user": "Indie animators and game creators recording character lines who need to compare takes for level, pace, and emotional consistency without cloning anyone’s voice.",
+  "evidence": [
+    {
+      "url": "https://hn.algolia.com/api/v1/items/48726190",
+      "date": "2026-06-29",
+      "quote_or_summary": "An animator reports inconsistent, flat AI voice results and expensive unusable human takes across roughly 40 lines, and asks for a better workflow."
+    },
+    {
+      "url": "https://github.com/godotengine/godot-proposals/issues/12133",
+      "date": "2025-04-01",
+      "quote_or_summary": "A puzzle-game developer says stream-level volume control is missing, making audio implementation and iteration tedious; the request has 18 reactions."
+    }
+  ],
+  "recurrence": "Two independent production problems across 2025–26: iterating audio assets and keeping many dialogue lines usable, rather than merely generating more speech.",
+  "current_workaround": "Keep naming conventions and notes, compare waveforms in a DAW, normalize manually, then discover level or pace mismatches in the edit.",
+  "incumbents_and_gap": "Audacity and DAWs edit audio; ElevenLabs and other generators create voices. The gap is a consent-safe, local takeboard specifically for comparing delivery against a chosen reference line, not generating or impersonating a voice.",
   "smallest_useful_product": "A local web app that imports creator-owned WAV/MP3 takes, groups them by line, shows loudness, duration, pause, and pitch-range comparison against a selected approved take, and exports a handoff CSV.",
   "success_measure": "A creator labels and compares 40 lines in under 30 minutes and flags at least five materially inconsistent takes before export.",
   "artifact_class": "pwa-offline",
   "monetization": "one-time",
-  "constraints": "Process audio locally; obtain performer consent for all material; present measurements as review cues rather than quality scores; respect licensed-music and performer-rights boundaries."
+  "constraints": "Process audio locally; obtain performer consent for all material; present measurements as review cues rather than quality scores; respect licensed-music and performer-rights boundaries.",
+  "est_build_effort": "M",
+  "why_distinct": "It improves human creative direction and take selection without being a thin generative-voice wrapper.",
+  "confidence": 4,
+  "state": "RESEARCHED"
 }

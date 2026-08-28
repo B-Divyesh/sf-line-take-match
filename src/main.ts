@@ -20,6 +20,7 @@ let consent = false;
 let unlocked = false;
 let undoTake: Take | null = null;
 let undoTimer = 0;
+let noticeTimer = 0;
 
 captureReturnedLicense();
 unlocked = hasOptimisticUnlock();
@@ -101,6 +102,10 @@ function render() {
     <div class="toast ${notice ? 'is-visible' : ''}" role="status" aria-live="polite">${escapeHtml(notice)} ${undoTake ? '<button data-action="undo">Undo</button>' : ''}</div>
   `;
   bindEvents();
+  clearTimeout(noticeTimer);
+  if (notice && !undoTake) {
+    noticeTimer = window.setTimeout(() => { notice = ''; render(); }, 5000);
+  }
 }
 
 function loadingMarkup() {
@@ -225,8 +230,12 @@ async function addFiles(fileList: FileList | null) {
       const metrics = await analyzeFile(file, (message) => { processing = `${message} ${file.name}`; });
       const line = inferLineName(file.name);
       const take: Take = { id: crypto.randomUUID(), name: file.name.replace(/\.[^.]+$/, ''), line, blob: file, mime: file.type, size: file.size, createdAt: Date.now() + index, metrics, reference: false, flagged: false, note: '' };
+      try {
+        await takeStore.put(take);
+      } catch {
+        error = 'This take was analyzed, but browser storage is unavailable. Export before closing this tab.';
+      }
       takes.push(take);
-      await takeStore.put(take);
       selectedLine ||= line;
     } catch (cause) {
       error = `${file.name}: ${cause instanceof Error ? cause.message : 'Analysis failed.'}`;
