@@ -37,4 +37,11 @@ npm run test:e2e
 npm run verify:live
 ```
 
-The final clean-clone output, live URL evidence, screenshots, deployment ID, and commit are recorded in `.factory/handoff.md`.
+Final evidence: clean clone `/tmp/line-take-match-clean.HUFbsZ` passed 13 unit,
+16 claim, and 58 browser tests. Live `npm run verify:live` passed at
+2026-08-28T13:17:29Z. Screenshots are
+`.factory/evidence/live/cold-mobile.png`,
+`.factory/evidence/live/demo-polish-2-mobile.png`, and
+`.factory/evidence/live/demo-polish-2-desktop.png`. The deployed URL is
+<https://line-take-match.sociobot.in>; commit
+`47b9ae63c4264e5c3daec3009ac785d410dc3144`.
