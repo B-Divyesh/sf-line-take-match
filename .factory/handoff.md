@@ -1,65 +1,36 @@
-# Line Take Match — polish round 2 handoff
+# Line Take Match — adversarial review 3 handoff
 
-## Released repair
+## Outcome
 
-Commit `47b9ae63c4264e5c3daec3009ac785d410dc3144` closes every finding in
-`review-1.md`, `review-2.md`, `verification.md`, `verification-3.md`, and
-`polish-1.md`. It is pushed to `main` and deployed as the Azure Static Web App
-production build (`sf-line-take-match`, status `Ready`) at
-<https://line-take-match.sociobot.in>.
+Review 3 is complete with a **FAIL** verdict. No product code was changed.
 
-The round-two changes strengthen all published claim tests, add route heading
-focus plus polite announcements, add local approved-then-candidate playback,
-replace vague format language, standardize the term **line**, and remove
-unprovable billing/credential statements. The product remains the dark
-night-market dubbing-booth PWA; no visual-system replacement was made.
+The landing cold read is clear, every registered claim passes, the demo sandbox protects real data, routing/metadata/accessibility checks pass, and the visual identity remains distinct. Acceptance is blocked because the first demo viewport shows only intro and counts; the first take card begins below the fold at y=1262 on 390×844 and y=935 on 1280×800.
 
-## Verification evidence
+The full report is `.factory/review-3.md`.
 
-Fresh clone: `/tmp/line-take-match-clean.HUFbsZ` at the released commit.
+## Findings left for the repair round
 
-- `npm ci` — passed; 0 vulnerabilities.
+- `F-3-1 / F-1-2` — BLOCKING: show realistic sample take/comparison content inside the first demo viewport.
+- `F-3-2 / F-2-2` — MAJOR: register and test “portable project backups” through re-import, or remove “portable.”
+- `F-3-3` — MINOR: change “1 lines” to “1 line.”
+- `F-3-4 / F-2-5` — MINOR: replace state-only button labels with result-naming actions.
+- `F-3-5` — MINOR: wait for route focus/announcement in `verify:live` instead of asserting immediately.
+
+## Verification performed
+
+Fresh clone `/tmp/line-take-match-review3.C4R7Ux` at `830fd8e60c29e07f377537083d921968202b085b`:
+
+- `npm ci` — passed; zero vulnerabilities.
+- All 16 commands in `.factory/claims.json` — passed independently.
 - `npm test` — 13/13 passed.
-- `npm run build` — passed; generated `dist/index.html`.
-- `npm run test:claims` — 16/16 passed. This executes every registry selector
-  in `.factory/claims.json`; the first two listed selector commands were also
-  run independently from the clean clone.
-- `npm run test:e2e -- --workers=1` — 58/58 passed, including desktop and
-  390×844 mobile, axe, privacy, offline, keyboard, route focus, and A/B
-  playback coverage.
-- `npm run verify:live` — passed at 2026-08-28T13:17:29Z. It cold-checked root,
-  demo, Privacy, Terms, and a 404; found zero serious/critical axe violations
-  and zero console errors; confirmed the demo sentinel isolation/reset/exit,
-  offline reload, 303 hosted checkout redirect, invalid-license rejection,
-  manifest MIME type, route focus announcement, and two playback actions.
-- Live Lighthouse mobile: Performance 97, Accessibility 100, Best Practices
-  100, SEO 100; LCP 2.299 s and CLS 0. Report:
-  `.factory/evidence/lighthouse-live.json`.
+- `npm run build` — passed; `dist/index.html` exists.
+- `npm run test:e2e -- --workers=1` — 58/58 passed.
+- `/opt/fleet/lib/verify-url.sh` — root, Demo, Privacy, and Terms passed.
+- Live route/metadata/link/axe crawl — expected statuses, complete metadata, and zero axe violations at 390px and desktop.
+- Live demo sentinel/reset/exit/offline/request interception — passed.
+- Live checkout — 303 to Dodo; hosted page showed Line Take Match at $19.00.
+- `npm run verify:live` repeated five times — two passed, three failed at the immediate Privacy focus check; focus arrived within 10–20 ms in independent sampling.
 
-Evidence screenshots:
+## Next step
 
-- `.factory/evidence/live/cold-mobile.png`
-- `.factory/evidence/live/demo-polish-2-mobile.png`
-- `.factory/evidence/live/demo-polish-2-desktop.png`
-- `.factory/evidence/live/live-check.json`
-
-The built initial application JavaScript is 30.67 KB (11.35 KB gzip) and CSS
-is 18.20 KB (5.01 KB gzip), below the static-product budgets.
-
-## Run or deploy
-
-```sh
-npm ci
-npm test
-npm run build
-npm run test:claims
-npm run test:e2e
-npm run verify:live
-```
-
-Deploy `dist/` with `/opt/fleet/lib/deploy-static.sh line-take-match dist`.
-
-## Known gaps
-
-None. The app intentionally does not generate, transcribe, or clone voices;
-it compares creator-owned recordings locally.
+Repair the five findings above, deploy through the factory, then repeat the entire review rather than only the changed checks.
