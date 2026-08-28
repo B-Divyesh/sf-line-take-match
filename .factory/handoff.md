@@ -10,7 +10,7 @@ Repaired candidate base: `7a47fb8f6d29433db83e2df7f8e20a0d5f95aa10`
 - **LTM-03:** Reference, flag, and line controls carry stable focus keys and regain keyboard focus after the board re-renders.
 - **LTM-04:** Restore failures render inside the open dialog as an assertive, associated message. The entered token remains available for correction or retry.
 - **LTM-05:** Mixed imports report separate successful and failed counts while retaining per-file decode errors.
-- **LTM-06:** `public/staticwebapp.config.json` sets immutable one-year caching for `/assets/*`, keeps `sw.js` updateable with `no-cache`, assigns the manifest MIME type, and adds CSP, frame, permissions, COOP/CORP, nosniff, and referrer policies. The generated precache excludes Azure’s non-public deployment metadata so the worker can install.
+- **LTM-06:** `public/staticwebapp.config.json` sets immutable one-year caching for `/assets/*`, keeps `sw.js` updateable with `no-cache`, and adds CSP, frame, permissions, COOP/CORP, nosniff, and referrer policies. The generated precache excludes Azure’s non-public deployment metadata so the worker can install. Azure still overrides the manifest response to `application/octet-stream`; Chromium parses it, but the desired `application/manifest+json` declaration is present in the host configuration.
 - **LTM-07:** Home and legal links have direct 44×44 CSS-pixel targets in both app and legal styles.
 - The checkout link, product slug, $19 one-time terms, return-token capture, and all free local-first workflow behavior were retained. Production billing registration is external to this repository and is checked again after deployment.
 
@@ -35,6 +35,15 @@ npm run test:e2e               PASS — 14 tests (desktop + 390px mobile)
 - Axe via Playwright at 390px: 0 violations/0 serious-or-critical issues and 0 console errors on `/`, `/privacy/`, and `/terms/`.
 - Existing browser regression covers IndexedDB persistence through a service-worker-controlled offline reload. The updated worker remains precached and updateable; the production update/offline check is repeated after deploy.
 
-## Deployment and remaining verification
+## Live deployment verification — 2026-08-28 UTC
 
-Static deployment uses `/opt/fleet/lib/deploy-static.sh line-take-match dist` from this committed build. After it completes, verify the live artifact identity, cache/response headers, offline reload/update toast, and real production Sociobot checkout redirect plus return-token flow. The first live checkout check in the verifier report was a 404 because the billing product was not registered; this static repository contains no billing credential or product-registration script and must not embed a payment-provider integration.
+- Deployed `a9426ca5cd7671b2cf39072508559e88da8cea9e` using `/opt/fleet/lib/deploy-static.sh line-take-match dist` to <https://line-take-match.sociobot.in>.
+- SHA-256 comparison: **20/20 public build artifacts matched** `dist/` exactly (deployment metadata is intentionally not a public artifact).
+- Live mobile Chromium: service worker controlled after reload; a subsequent offline reload rendered “Hear the line. See the drift.” Axe found 0 violations (0 serious/critical) and there were 0 console/page errors.
+- `verify-url.sh`: HTTP 200, title/lang/one-h1/main/alt/button checks passed; desktop live load was 997 ms.
+- Live response policy: hashed `main-BTTqWMs2.js` returns `Cache-Control: public, max-age=31536000, immutable`; `sw.js` returns `Cache-Control: no-cache`. CSP, `X-Frame-Options: DENY`, Permissions-Policy, COOP, CORP, nosniff, and referrer policy are present.
+- The live manifest is still served by Azure as `application/octet-stream` despite the configuration declaration; Chromium reports no manifest error.
+
+## Known external blocker
+
+**LTM-01 remains blocked outside this repository.** At 2026-08-28 UTC, `GET https://api.sociobot.in/api/v1/products/line-take-match/checkout` still returns HTTP **404** (`{"error":"enabled factory product","status":404}`), so a real hosted checkout and return token cannot be exercised. The production catalog must register/enable `line-take-match` with its `$19` one-time price and `https://line-take-match.sociobot.in/` return URL. The client return-token behavior is covered in browser regression, but the product cannot be called releasable until the factory billing control plane enables that endpoint.
