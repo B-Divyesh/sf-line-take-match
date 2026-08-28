@@ -19,9 +19,9 @@ npm ci
 npm run dev
 ```
 
-Open the shown local URL. Confirm performer consent, then import audio your browser can play. WAV is the safest choice.
+Open the shown local URL. Confirm performer consent, then import audio your browser can play. If another format fails, convert it to WAV and try again.
 
-Numbered filenames such as `_take-03` or `_v2` group by line. You can edit every line name.
+Numbered filenames such as `_take-03` or `_v2` group by line. You can edit every line.
 
 ## Test and build
 
@@ -54,6 +54,6 @@ Read the [privacy policy](./privacy/index.html), [terms](./terms/index.html), [r
 
 Deploy `dist/` to an HTTPS static host that serves directory index files. Unknown paths must use `404/index.html` with status 404.
 
-The factory owns infrastructure, DNS, and paid-product registration. This repository does not contain billing credentials.
+The factory owns infrastructure, DNS, and paid-product registration.
 
 Licensed under the [MIT License](./LICENSE).

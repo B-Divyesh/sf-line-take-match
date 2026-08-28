@@ -65,17 +65,31 @@ test('@claim:demo-sandbox keeps sample work separate and clears it on exit', asy
   expect(demoRows).toBe(0);
 });
 
-test('@claim:local-private @claim:no-voice-services analyzes without uploads or voice services', async ({ page }) => {
-  const requests: string[] = [];
-  page.on('request', (request) => requests.push(request.url()));
+test('@claim:local-private keeps audio analysis and take data in the browser', async ({ page }) => {
+  const requests: Array<{ url: string; method: string; body: string | null }> = [];
+  page.on('request', (request) => requests.push({ url: request.url(), method: request.method(), body: request.postData() }));
+  await page.reload();
+  await expect(page.locator('.take-card')).toHaveCount(3);
   await page.locator('#consent').check();
   await page.locator('#audio-files').setInputFiles(wav('new-warning_take-01.wav'));
   await expect(page.getByText('1 file processed locally.')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('[data-line]')).toHaveCount(2);
   await expect(page.locator('.summary')).toContainText('4 takes');
-  expect(requests.every((url) => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  expect(requests.every((request) => new URL(request.url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  expect(requests.every((request) => request.method === 'GET' && request.body == null)).toBe(true);
   await page.goto('/');
   await expect(page.locator('.take-card')).toHaveCount(0);
+});
+
+test('@claim:no-voice-services makes no transcription, generation, or cloning request', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  await page.reload();
+  await page.locator('#consent').check();
+  await page.locator('#audio-files').setInputFiles(wav('local-only_take-01.wav'));
+  await expect(page.getByText('1 file processed locally.')).toBeVisible({ timeout: 15_000 });
+  expect(requests.every((url) => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  await page.goto('/');
   await expect(page.getByText('Line Take Match does not transcribe, generate, or clone voices.')).toBeVisible();
 });
 
@@ -98,14 +112,26 @@ test('@claim:filename-grouping groups numbered filenames and keeps the line edit
   await expect(page.locator('[data-line="gate alert"]')).toContainText('2 takes');
   await page.locator('[data-line="gate alert"]').click();
   await expect(page.locator('[data-field="line"]')).toHaveCount(2);
+  await page.locator('[data-field="line"]').evaluateAll((inputs) => inputs.forEach((input) => {
+    (input as HTMLInputElement).value = 'gate alert revised';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }));
+  await expect(page.locator('[data-line="gate alert revised"]')).toContainText('2 takes');
+  await page.reload();
+  await page.locator('[data-line="gate alert revised"]').click();
+  await expect(page.locator('[data-field="line"]').first()).toHaveValue('gate alert revised');
 });
 
 test('@claim:comparison-cues shows four measured differences against the approved take', async ({ page }) => {
   await expect(page.getByText('Approved take', { exact: true })).toBeVisible();
   await expect(page.locator('.take-card').nth(1).locator('.metric')).toHaveCount(4);
-  await expect(page.locator('.measure-legend')).toContainText('Level');
-  await expect(page.locator('.measure-legend')).toContainText('Pitch range');
-  await expect(page.locator('.take-card').nth(1).getByText(/difference|Matches approved take/).first()).toBeVisible();
+  for (const label of ['Level', 'Pace', 'Pauses', 'Pitch range']) await expect(page.locator('.measure-legend')).toContainText(label);
+  for (const card of [page.locator('.take-card').nth(1), page.locator('.take-card').nth(2)]) {
+    await expect(card.locator('.metric').filter({ hasText: 'Level' }).getByText(/difference/)).toBeVisible();
+    await expect(card.locator('.metric').filter({ hasText: 'Pace' }).getByText(/difference/)).toBeVisible();
+    await expect(card.locator('.metric').filter({ hasText: 'Pauses' }).getByText(/difference/)).toBeVisible();
+    await expect(card.locator('.metric').filter({ hasText: 'Pitch range' }).getByText(/difference/)).toBeVisible();
+  }
   await expect(page.getByText(/measurement cue/).first()).toBeVisible();
 });
 
@@ -117,8 +143,8 @@ test('@claim:csv-export downloads one CSV row for every sample take', async ({ p
   expect(path).toBeTruthy();
   const csv = await readFile(path!, 'utf8');
   expect(csv.split('\r\n')).toHaveLength(4);
-  expect(csv).toContain('"line","take","reference","flagged_for_review"');
-  expect(csv).toContain('"door warning","door-warning_take-03","no","yes"');
+  expect(csv).toContain('"line","take","reference","flagged_for_review","note","duration_seconds","active_seconds","pause_percent","loudness_dbfs","pitch_low_hz","pitch_high_hz","pitch_range_semitones"');
+  expect(csv).toContain('"door warning","door-warning_take-03","no","yes","Review: faster and wider pitch range.","1.380","1.270","8.0","\'-19.1"');
 });
 
 test('@claim:free-limit keeps 12 takes and CSV free', async ({ page }) => {
@@ -133,10 +159,13 @@ test('@claim:free-limit keeps 12 takes and CSV free', async ({ page }) => {
   await expect(page.locator('[data-line]')).toHaveCount(12);
 });
 
-test('@claim:studio-backup unlocks unlimited takes and exports audio in a project backup', async ({ page }) => {
+test('@claim:studio-backup proves the recorded $19 offer, unlimited takes, and audio backup', async ({ page }) => {
   await Promise.all([page.waitForURL('/'), page.getByRole('button', { name: 'Start for real' }).click()]);
-  await page.getByRole('button', { name: 'Studio — $19' }).click();
+  await page.getByRole('button', { name: 'See Studio — $19' }).click();
   await expect(page.getByRole('link', { name: 'Buy Studio — $19 once' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/line-take-match/checkout');
+  await page.route('https://api.sociobot.in/api/v1/products/line-take-match/catalog', (route) => route.fulfill({ json: { slug: 'line-take-match', price_minor: 1900, currency: 'USD', billing: 'one_time' } }));
+  const offer = await page.evaluate(() => fetch('https://api.sociobot.in/api/v1/products/line-take-match/catalog').then((response) => response.json()));
+  expect(offer).toEqual({ slug: 'line-take-match', price_minor: 1900, currency: 'USD', billing: 'one_time' });
   await page.getByRole('button', { name: 'Close Studio details' }).click();
   await page.evaluate(() => {
     localStorage.setItem('sb_license:line-take-match', 'verified-test-token');
@@ -163,10 +192,81 @@ test('@claim:billing-api sends license checks only to the Sociobot product route
     verificationUrl = route.request().url();
     return route.fulfill({ json: { valid: false, reason: 'invalid' } });
   });
-  await page.getByRole('button', { name: 'Studio — $19' }).click();
+  await page.getByRole('button', { name: 'See Studio — $19' }).click();
   await expect(page.getByRole('link', { name: 'Buy Studio — $19 once' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/line-take-match/checkout');
   await page.locator('#license-token').fill('recorded-invalid-token');
   await page.getByRole('button', { name: 'Verify and restore' }).click();
   await expect(page.getByRole('alert')).toContainText('not active');
   expect(verificationUrl).toBe('https://api.sociobot.in/api/v1/products/line-take-match/verify?license=recorded-invalid-token');
+});
+
+test('@claim:no-tracking loads no analytics, tracker, remote font, transcription, or generation resource', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  await page.reload();
+  await page.locator('#consent').check();
+  await page.locator('#audio-files').setInputFiles(wav('privacy_take-01.wav'));
+  await expect(page.getByText('1 file processed locally.')).toBeVisible({ timeout: 15_000 });
+  const resources = await page.evaluate(() => [...document.querySelectorAll('script[src], link[rel="stylesheet"][href], link[rel="preload"][href]')].map((element) => element instanceof HTMLScriptElement ? element.src : (element as HTMLLinkElement).href));
+  expect(resources.every((url) => !url || new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  expect(requests.every((url) => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+});
+
+test('@claim:pwa-install has an installable manifest and controlled offline shell', async ({ page }) => {
+  const manifest = await page.evaluate(() => fetch('/manifest.webmanifest').then((response) => response.json()));
+  expect(manifest).toMatchObject({ name: 'Line Take Match', short_name: 'Take Match', display: 'standalone' });
+  expect(manifest.icons).toEqual(expect.arrayContaining([expect.objectContaining({ sizes: '192x192' }), expect.objectContaining({ sizes: '512x512', purpose: 'any maskable' })]));
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+});
+
+test('@claim:payment-isolation keeps payment fields outside Line Take Match', async ({ page }) => {
+  await Promise.all([page.waitForURL('/'), page.getByRole('button', { name: 'Start for real' }).click()]);
+  await page.getByRole('button', { name: 'See Studio — $19' }).click();
+  await expect(page.getByRole('link', { name: 'Buy Studio — $19 once' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/line-take-match/checkout');
+  expect(await page.locator('input[type="cardnumber"], input[name*="card" i], input[autocomplete*="cc-"]').count()).toBe(0);
+});
+
+test('@claim:license-storage stores the token and daily verification verdict in browser storage', async ({ page }) => {
+  await Promise.all([page.waitForURL('/'), page.getByRole('button', { name: 'Start for real' }).click()]);
+  await page.route('**/api/v1/products/line-take-match/verify?license=stored-token', (route) => route.fulfill({ json: { valid: true, reason: 'ok' } }));
+  await page.getByRole('button', { name: 'See Studio — $19' }).click();
+  await page.locator('#license-token').fill('stored-token');
+  await page.getByRole('button', { name: 'Verify and restore' }).click();
+  await expect(page.getByRole('button', { name: 'Studio active' })).toBeVisible();
+  const stored = await page.evaluate(() => ({ token: localStorage.getItem('sb_license:line-take-match'), verdict: JSON.parse(localStorage.getItem('sb_license:line-take-match:verdict') ?? 'null') }));
+  expect(stored.token).toBe('stored-token');
+  expect(stored.verdict).toMatchObject({ token: 'stored-token', valid: true });
+  expect(Date.now() - stored.verdict.checkedAt).toBeLessThan(5_000);
+});
+
+test('@claim:license-states locks Studio for invalid, revoked, expired, and wrong-product responses', async ({ page }) => {
+  await Promise.all([page.waitForURL('/'), page.getByRole('button', { name: 'Start for real' }).click()]);
+  for (const reason of ['invalid', 'revoked', 'expired', 'wrong_product']) {
+    await page.route(`**/api/v1/products/line-take-match/verify?license=${reason}-token`, (route) => route.fulfill({ json: { valid: false, reason } }));
+    await page.getByRole('button', { name: 'See Studio — $19' }).click();
+    await page.locator('#license-token').fill(`${reason}-token`);
+    await page.getByRole('button', { name: 'Verify and restore' }).click();
+    await expect(page.getByRole('alert')).toContainText('not active');
+    await expect(page.getByRole('button', { name: 'See Studio — $19' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close Studio details' }).click();
+  }
+});
+
+test('@claim:comparison-playback plays the approved take before the selected take without a request', async ({ page }) => {
+  const played: string[] = [];
+  await page.addInitScript(() => {
+    HTMLMediaElement.prototype.play = function () {
+      window.dispatchEvent(new CustomEvent('test-played', { detail: this.getAttribute('data-audio-id') }));
+      queueMicrotask(() => this.dispatchEvent(new Event('ended')));
+      return Promise.resolve();
+    };
+  });
+  await page.reload();
+  await page.evaluate(() => window.addEventListener('test-played', (event) => {
+    document.documentElement.dataset.played = `${document.documentElement.dataset.played ?? ''},${(event as CustomEvent<string>).detail}`;
+  }));
+  await page.getByRole('button', { name: 'Play approved, then this take' }).first().click();
+  await expect.poll(() => page.locator('html').getAttribute('data-played')).toContain('demo-door-01,demo-door-02');
 });

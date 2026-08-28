@@ -5,6 +5,7 @@ import { makeDemoTakes } from './demo';
 import { download, makeBackup, readBackup, toCsv } from './export';
 import { captureReturnedLicense, checkoutUrl, clearLicense, hasOptimisticUnlock, saveLicense, verifyLicense } from './license';
 import { inferLineName, uniqueLines } from './naming';
+import { focusAndAnnounceRoute, installBackRouteFocus, shouldFocusRouteHeading, trackInternalRoutes } from './route-focus';
 import type { Metrics, Take } from './types';
 
 const FREE_LIMIT = 12;
@@ -28,10 +29,14 @@ let focusAfterRender = '';
 let licenseError = '';
 let licenseToken = '';
 let licenseTrigger: HTMLElement | null = null;
+let comparisonPlayback: { referenceId: string; candidateId: string; phase: 'approved' | 'candidate' } | null = null;
+let moveFocusToRouteHeading = shouldFocusRouteHeading();
 
 if (demoMode) setDemoMetadata();
 if (!demoMode) captureReturnedLicense();
 unlocked = demoMode || hasOptimisticUnlock();
+trackInternalRoutes();
+installBackRouteFocus();
 document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (event) => {
   event.preventDefault();
   history.replaceState(null, '', `${location.pathname}${location.search}#main`);
@@ -79,7 +84,7 @@ function render() {
   app.innerHTML = `
     <header class="site-header">
       <a class="brand" href="/" aria-label="Line Take Match home"><span class="brand-mark" aria-hidden="true">LT</span><span>Line Take Match</span></a>
-      <nav class="site-nav" aria-label="Primary"><a href="/?demo=1" ${demoMode ? 'aria-current="page"' : ''}>Demo</a><a href="/privacy/">Privacy</a>${demoMode ? '' : `<button class="button quiet" data-action="show-license">${unlocked ? 'Studio active' : 'Studio — $19'}</button>`}</nav>
+      <nav class="site-nav" aria-label="Primary"><a href="/?demo=1" ${demoMode ? 'aria-current="page"' : ''}>Demo</a><a href="/privacy/">Privacy</a>${demoMode ? '' : `<button class="button quiet" data-action="show-license">${unlocked ? 'Studio active' : 'See Studio — $19'}</button>`}</nav>
     </header>
     ${demoMode ? demoBannerMarkup() : ''}
     <main id="main" tabindex="-1">
@@ -107,6 +112,10 @@ function render() {
     <div class="toast ${notice ? 'is-visible' : ''}" role="status" aria-live="polite">${escapeHtml(notice)} ${undoTake ? '<button data-action="undo">Undo</button>' : ''}</div>
   `;
   bindEvents();
+  if (moveFocusToRouteHeading) {
+    moveFocusToRouteHeading = false;
+    requestAnimationFrame(focusAndAnnounceRoute);
+  }
   const focusKey = focusAfterRender || activeKey;
   focusAfterRender = '';
   if (focusKey) requestAnimationFrame(() => focusByKey(focusKey));
@@ -121,7 +130,7 @@ function importMarkup(freeRemaining: number) {
         <div>
           <p class="section-kicker">${demoMode ? '03' : '01'} / Import</p>
           <h2 id="import-title">Import audio takes</h2>
-          <p>Choose audio files your browser can play. WAV is the safest choice. Filenames such as <code>door-warning_take-03.wav</code> group by line.</p>
+          <p>Choose audio files your browser can play. If another format fails, convert it to WAV and try again. Filenames such as <code>door-warning_take-03.wav</code> group by line.</p>
         </div>
         <label class="consent-check"><input id="consent" type="checkbox" ${consent ? 'checked' : ''}><span>I have the performer’s consent and rights to review these recordings.</span></label>
         <label class="drop-zone ${processing ? 'is-processing' : ''}" id="drop-zone" tabindex="0">
@@ -149,7 +158,7 @@ function informationMarkup() {
 }
 
 function footerMarkup() {
-  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · polish-1</span></nav></footer>`;
+  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · polish-2</span></nav></footer>`;
 }
 
 function loadingMarkup() {
@@ -168,7 +177,7 @@ function boardMarkup(lines: string[], current: Take[], reference: Take | undefin
       <div class="export-actions"><button class="button secondary" data-action="import-backup">Import backup</button><input id="backup-file" type="file" accept="application/json,.json" hidden><button class="button secondary" data-action="backup" ${unlocked ? '' : 'aria-describedby="backup-lock"'}>Back up project${unlocked ? '' : ' · Studio'}</button><button class="button primary" data-action="csv">Export CSV</button></div>
     </div>
     <div class="board-grid">
-      <aside class="line-list" aria-label="Dialogue lines"><div class="line-list-label">Dialogue lines <span>${lines.length}</span></div>${lines.length ? lines.map(lineButton).join('') : '<p class="no-results">No lines match that search.</p>'}</aside>
+      <aside class="line-list" aria-label="Lines"><div class="line-list-label">Lines <span>${lines.length}</span></div>${lines.length ? lines.map(lineButton).join('') : '<p class="no-results">No lines match that search.</p>'}</aside>
       <div class="take-area">
         ${selectedLine ? `<div class="line-heading"><div><p>Selected line</p><h3>${escapeHtml(selectedLine)}</h3></div><span>${current.length} take${current.length === 1 ? '' : 's'}</span></div>
         <p class="cue-note"><span aria-hidden="true">◎</span>${reference ? `Differences use “${escapeHtml(reference.name)}” as the approved take. Listen before you decide.` : 'Choose one approved take to reveal differences.'}</p>
@@ -193,9 +202,9 @@ function takeMarkup(take: Take, reference?: Take) {
   return `<article class="take-card ${take.reference ? 'is-reference' : ''} ${take.flagged ? 'is-flagged' : ''}">
     <div class="take-identity">
       <div class="take-label"><span>${take.reference ? 'Approved take' : take.flagged ? 'Flagged for review' : flaggedCues ? `${flaggedCues} measurement cue${flaggedCues > 1 ? 's' : ''}` : 'Take'}</span><strong>${escapeHtml(take.name)}</strong></div>
-      ${objectUrl ? `<audio controls preload="none" src="${objectUrl}" aria-label="Play ${escapeAttr(take.name)}"></audio>` : '<p class="missing-audio">Audio missing from imported backup</p>'}
+      ${objectUrl ? `<audio controls preload="none" src="${objectUrl}" data-audio-id="${take.id}" aria-label="Play ${escapeAttr(take.name)}"></audio>` : '<p class="missing-audio">Audio missing from imported backup</p>'}
       ${waveform(metrics, take.name)}
-      <label class="line-field"><span>Line group</span><input data-field="line" data-id="${take.id}" value="${escapeAttr(take.line)}"></label>
+      <label class="line-field"><span>Line</span><input data-field="line" data-id="${take.id}" value="${escapeAttr(take.line)}"></label>
     </div>
     ${metricCell('Level', `${metrics.loudness.toFixed(1)} dBFS`, delta(metrics.loudness, reference?.metrics.loudness, ' dB', false), Math.min(100, Math.max(4, (metrics.loudness + 60) * 2.1)))}
     ${metricCell('Pace', `${metrics.duration.toFixed(2)} s`, delta(metrics.duration, reference?.metrics.duration, ' s'), Math.min(100, metrics.duration / Math.max(...takes.filter(t => t.line === take.line).map(t => t.metrics.duration)) * 100))}
@@ -203,6 +212,7 @@ function takeMarkup(take: Take, reference?: Take) {
     ${metricCell('Pitch range', metrics.pitchRange == null ? '—' : `${metrics.pitchRange.toFixed(1)} st`, metrics.pitchRange == null ? 'No stable pitch found' : delta(metrics.pitchRange, reference?.metrics.pitchRange ?? undefined, ' st'), Math.min(100, (metrics.pitchRange ?? 0) * 8))}
     <div class="take-actions">
       <button class="chip ${take.reference ? 'active' : ''}" data-action="reference" data-id="${take.id}" data-focus-key="reference:${take.id}" ${take.reference ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${take.reference ? '✓ Approved' : 'Set as approved'}</button>
+      ${reference && reference.id !== take.id && objectUrl && reference.blob ? `<button class="chip compare-play" data-action="compare-play" data-id="${take.id}" aria-pressed="${comparisonPlayback?.candidateId === take.id}">${comparisonPlayback?.candidateId === take.id ? comparisonPlayback.phase === 'approved' ? 'Playing approved take…' : 'Playing this take…' : 'Play approved, then this take'}</button>` : ''}
       <button class="chip ${take.flagged ? 'warning' : ''}" data-action="flag" data-id="${take.id}" data-focus-key="flag:${take.id}" aria-pressed="${take.flagged}">${take.flagged ? '⚑ Flagged' : 'Flag review'}</button>
       <label class="note-field"><span>Review note</span><input data-field="note" data-id="${take.id}" value="${escapeAttr(take.note)}" placeholder="Direction note"></label>
       <button class="icon-button" data-action="remove" data-id="${take.id}" aria-label="Remove ${escapeAttr(take.name)}">Remove</button>
@@ -235,7 +245,7 @@ function reviewCueCount(metrics: Metrics, reference: Metrics) {
 }
 
 function licenseMarkup() {
-  return `<dialog id="license-dialog" class="license-dialog"><button class="dialog-close" data-action="close-license" aria-label="Close Studio details">×</button><p class="section-kicker">Studio license</p><h2>${unlocked ? 'Your full take list is open' : 'Keep all your takes together'}</h2><p>Free mode compares up to ${FREE_LIMIT} takes and includes CSV export. Studio costs <strong>$19 once</strong>. It adds unlimited takes and portable project backups.</p><ul><li>Unlimited takes and lines on this device</li><li>Download a backup with your audio</li><li>Core comparison and CSV stay free</li></ul>${unlocked ? '<p class="message success">License active on this device.</p><button class="button quiet" data-action="clear-license">Remove license from device</button>' : `<a class="button primary buy" href="${checkoutUrl}">Buy Studio — $19 once</a><form id="license-form"><label><span>Have a license? Paste it here</span><input id="license-token" value="${escapeAttr(licenseToken)}" required aria-describedby="license-feedback" autocomplete="off" spellcheck="false"></label><button class="button secondary" type="submit">Verify and restore</button></form>${licenseError ? `<p id="license-feedback" class="message error" role="alert" aria-live="assertive">${escapeHtml(licenseError)}</p>` : '<p id="license-feedback" class="visually-hidden">Paste your Studio license token, then verify and restore it.</p>'}`}<p class="legal-note">Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the license. See <a href="/privacy/">privacy</a> and <a href="/terms/">terms</a>.</p></dialog>`;
+  return `<dialog id="license-dialog" class="license-dialog"><button class="dialog-close" data-action="close-license" aria-label="Close Studio details">×</button><p class="section-kicker">Studio license</p><h2>${unlocked ? 'Your full take list is open' : 'Keep all your takes together'}</h2><p>Free mode compares up to ${FREE_LIMIT} takes and includes CSV export. Studio costs <strong>$19 once</strong>. It adds unlimited takes and portable project backups.</p><ul><li>Unlimited takes and lines on this device</li><li>Download a backup with your audio</li><li>Core comparison and CSV stay free</li></ul>${unlocked ? '<p class="message success">License active on this device.</p><button class="button quiet" data-action="clear-license">Remove license from device</button>' : `<a class="button primary buy" href="${checkoutUrl}">Buy Studio — $19 once</a><form id="license-form"><label><span>Have a license? Paste it here</span><input id="license-token" value="${escapeAttr(licenseToken)}" required aria-describedby="license-feedback" autocomplete="off" spellcheck="false"></label><button class="button secondary" type="submit">Verify and restore</button></form>${licenseError ? `<p id="license-feedback" class="message error" role="alert" aria-live="assertive">${escapeHtml(licenseError)}</p>` : '<p id="license-feedback" class="visually-hidden">Paste your Studio license token, then verify and restore it.</p>'}`}<p class="legal-note">Studio checkout opens on Sociobot. A revoked license no longer unlocks Studio. See <a href="/privacy/">privacy</a> and <a href="/terms/">terms</a>.</p></dialog>`;
 }
 
 function bindEvents() {
@@ -251,6 +261,9 @@ function bindEvents() {
   document.querySelectorAll<HTMLElement>('[data-line]').forEach((element) => element.addEventListener('click', () => { selectedLine = element.dataset.line ?? ''; focusAfterRender = element.dataset.focusKey ?? ''; render(); }));
   document.querySelectorAll<HTMLElement>('[data-action]').forEach((element) => element.addEventListener('click', () => void handleAction(element.dataset.action ?? '', element.dataset.id, element)));
   document.querySelectorAll<HTMLInputElement>('[data-field]').forEach((element) => element.addEventListener('change', () => void updateField(element)));
+  document.querySelectorAll<HTMLAudioElement>('audio[data-audio-id]').forEach((audio) => audio.addEventListener('play', () => {
+    if (comparisonPlayback && audio.dataset.audioId !== comparisonPlayback.referenceId && audio.dataset.audioId !== comparisonPlayback.candidateId) stopComparison();
+  }));
   document.querySelector('#license-form')?.addEventListener('submit', (event) => void restoreLicense(event));
   document.querySelector('#backup-file')?.addEventListener('change', (event) => void importBackup((event.target as HTMLInputElement).files?.[0]));
 }
@@ -307,6 +320,11 @@ async function handleAction(action: string, id?: string, source?: HTMLElement) {
   if (action === 'start-real' && demoMode) {
     await takeStore.clear(); location.assign('/'); return;
   }
+  if (action === 'compare-play') {
+    const candidate = takes.find((item) => item.id === id);
+    if (candidate) await playComparison(candidate);
+    return;
+  }
   if (action === 'csv') { download(toCsv(takes), `line-take-match-${dateStamp()}.csv`, 'text/csv;charset=utf-8'); notice = 'CSV exported.'; render(); return; }
   if (action === 'backup') {
     if (!unlocked) { document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal(); return; }
@@ -330,6 +348,61 @@ async function handleAction(action: string, id?: string, source?: HTMLElement) {
   }
   focusAfterRender = source?.dataset.focusKey ?? '';
   render();
+}
+
+function stopAllAudio() {
+  document.querySelectorAll<HTMLAudioElement>('audio').forEach((audio) => {
+    audio.pause();
+    audio.currentTime = 0;
+  });
+}
+
+function stopComparison() {
+  stopAllAudio();
+  comparisonPlayback = null;
+  render();
+}
+
+async function playComparison(candidate: Take) {
+  const reference = takes.find((take) => take.line === candidate.line && take.reference);
+  if (!reference?.blob || !candidate.blob) {
+    notice = 'Choose an approved take with audio before comparing playback.';
+    render();
+    return;
+  }
+  if (comparisonPlayback?.candidateId === candidate.id) {
+    stopComparison();
+    return;
+  }
+  stopAllAudio();
+  comparisonPlayback = { referenceId: reference.id, candidateId: candidate.id, phase: 'approved' };
+  render();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const approvedAudio = document.querySelector<HTMLAudioElement>(`audio[data-audio-id="${reference.id}"]`);
+  const candidateAudio = document.querySelector<HTMLAudioElement>(`audio[data-audio-id="${candidate.id}"]`);
+  if (!approvedAudio || !candidateAudio) return stopComparison();
+  const finish = () => {
+    comparisonPlayback = null;
+    render();
+  };
+  approvedAudio.addEventListener('ended', () => {
+    if (comparisonPlayback?.candidateId !== candidate.id) return;
+    comparisonPlayback = { referenceId: reference.id, candidateId: candidate.id, phase: 'candidate' };
+    render();
+    requestAnimationFrame(() => {
+      const next = document.querySelector<HTMLAudioElement>(`audio[data-audio-id="${candidate.id}"]`);
+      if (!next) return finish();
+      next.addEventListener('ended', finish, { once: true });
+      void next.play().catch(() => { notice = 'Playback was blocked. Use the audio controls to listen.'; finish(); });
+    });
+  }, { once: true });
+  try {
+    await approvedAudio.play();
+  } catch {
+    notice = 'Playback was blocked. Use the audio controls to listen.';
+    comparisonPlayback = null;
+    render();
+  }
 }
 
 async function updateField(input: HTMLInputElement) {

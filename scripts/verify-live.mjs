@@ -43,6 +43,11 @@ try {
   await page.locator('.skip-link').focus();
   await page.keyboard.press('Enter');
   check(await page.evaluate(() => document.activeElement?.id === 'main'), 'Skip link did not move focus');
+  await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Privacy' }).click();
+  check(await page.evaluate(() => document.activeElement?.tagName === 'H1'), 'Privacy navigation did not move focus to its heading');
+  check(await page.locator('#route-announcement').textContent() === 'Privacy — Line Take Match.', 'Privacy navigation did not announce the route');
+  await page.goBack({ waitUntil: 'networkidle' });
+  check(await page.evaluate(() => document.activeElement?.tagName === 'H1'), 'Browser Back did not restore focus to the home heading');
 
   await page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('line-take-match', 1);
@@ -66,6 +71,7 @@ try {
   check(await page.title() === 'Demo — Line Take Match', 'Demo title is wrong');
   check(await page.getByText('Demo — sample data, nothing is saved', { exact: false }).isVisible(), 'Demo banner is missing');
   check(await page.locator('.take-card').count() === 3, 'Demo did not open three sample takes');
+  check(await page.getByRole('button', { name: 'Play approved, then this take' }).count() === 2, 'Demo comparison playback actions are missing');
   check((await databaseRows('line-take-match')).some((row) => row.id === 'live-real-sentinel'), 'Demo read or erased real data');
   await page.locator('[data-field="note"]').first().fill('changed in live demo');
   await page.locator('[data-field="note"]').first().blur();
@@ -127,7 +133,7 @@ try {
 
   const report = {
     checkedAt: new Date().toISOString(), base, viewport: '390x844', consoleErrors,
-    demo: { sampleTakes: 3, realSentinelPreserved: true, resetRestoredSamples: true, clearedOnExit: true, offlineReload: true },
+    demo: { sampleTakes: 3, comparisonPlaybackActions: 2, realSentinelPreserved: true, resetRestoredSamples: true, clearedOnExit: true, offlineReload: true },
     checkout: { status: checkout.status(), hostedRedirect: true, invalidLicenseRejected: true },
     manifestContentType: manifest.headers()['content-type'], routes: routeChecks,
   };

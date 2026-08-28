@@ -58,6 +58,37 @@ test('serves route-specific metadata and the designed not-found page', async ({ 
   await expect(page.getByRole('heading', { level: 1, name: 'This page missed its cue.' })).toBeVisible();
 });
 
+test('moves focus to the route heading and announces internal navigation and browser back', async ({ page }) => {
+  await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Privacy' }).click();
+  await expect(page).toHaveURL(/\/privacy\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expect(page.locator('#route-announcement')).toContainText('Privacy — Line Take Match');
+  await page.goBack();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expect(page.locator('#route-announcement')).toContainText('Line Take Match — compare recorded voice takes');
+});
+
+test('restores a heading destination through demo, terms, and not-found history entries', async ({ page }) => {
+  await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Demo' }).click();
+  await expect(page).toHaveURL(/demo=1$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+
+  await page.getByRole('navigation', { name: 'Footer' }).getByRole('link', { name: 'Terms' }).click();
+  await expect(page).toHaveURL(/\/terms\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+
+  await page.goto('/404/');
+  await page.getByRole('link', { name: 'Return to Line Take Match' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+});
+
 test('imports, compares, flags, persists, and works offline', async ({ page, context }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   await expect(page.getByText('Your takes will appear here')).toBeVisible();
@@ -132,12 +163,12 @@ test('keeps keyboard focus on the updated reference, flag, and line controls', a
 
 test('keeps an unverified license locked and explains an invalid token inside the dialog', async ({ page }) => {
   await page.route('**/api/v1/products/line-take-match/verify?license=*', (route) => route.abort());
-  await page.getByRole('button', { name: 'Studio — $19' }).click();
+  await page.getByRole('button', { name: 'See Studio — $19' }).click();
   const dialog = page.locator('#license-dialog');
   await dialog.locator('#license-token').fill('never-verified');
   await dialog.getByRole('button', { name: 'Verify and restore' }).click();
   await expect(dialog.getByRole('alert')).toContainText('Studio stays locked until it is verified.');
-  await expect(page.getByRole('button', { name: 'Studio — $19' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'See Studio — $19' })).toBeVisible();
 
   await page.unrouteAll({ behavior: 'wait' });
   await page.route('**/api/v1/products/line-take-match/verify?license=*', (route) => route.fulfill({ json: { valid: false, reason: 'invalid' } }));

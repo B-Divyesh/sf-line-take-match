@@ -1,4 +1,4 @@
-# Copy audit — polish round 1
+# Copy audit — polish round 2
 
 Audited 2026-08-28. Hyphenated terms, filenames, prices, and version strings count as one word. No item exceeds 22 words, and no banned marketing term remains.
 
@@ -17,7 +17,7 @@ Audited 2026-08-28. Hyphenated terms, filenames, prices, and version strings cou
 | Works offline after the first visit | 6 | Pass |
 | Free for 12 takes · Studio costs $19 once | 9 | Pass |
 | Choose audio files your browser can play. | 7 | Pass |
-| WAV is the safest choice. | 5 | Pass |
+| If another format fails, convert it to WAV and try again. | 11 | Pass |
 | Filenames such as door-warning_take-03.wav group by line. | 7 | Pass |
 | I have the performer’s consent and rights to review these recordings. | 10 | Pass |
 | Your takes will appear here | 5 | Pass |
@@ -31,6 +31,7 @@ Audited 2026-08-28. Hyphenated terms, filenames, prices, and version strings cou
 | Filenames group takes for the same line. | 7 | Pass |
 | Choose the approved take. | 4 | Pass |
 | Compare level, pace, pauses, and pitch range. | 7 | Pass |
+| Play approved, then this take | 6 | Pass |
 | Flag and export. | 3 | Pass |
 | Add notes and download a CSV for your team. | 9 | Pass |
 | Keep the performance human | 4 | Pass |
@@ -54,13 +55,13 @@ Audited 2026-08-28. Hyphenated terms, filenames, prices, and version strings cou
 | Core comparison and CSV stay free | 6 | Pass |
 | Have a license? Paste it here | 6 | Pass |
 | Paste your Studio license token, then verify and restore it. | 10 | Pass |
-| Sociobot/Dodo is the merchant of record. | 7 | Required legal term |
-| Refunds are handled there and revoke the license. | 8 | Pass |
+| Studio checkout opens on Sociobot. | 5 | Listed claim |
+| A revoked license no longer unlocks Studio. | 8 | Listed claim |
 | See privacy and terms. | 4 | Pass |
 
 ## README
 
-Every prose sentence in `README.md` is 22 words or fewer. The longest is 17 words: “The browser suite uses Playwright 1.58.2. It covers desktop, 390px mobile, browser storage, accessibility, privacy, and offline reload.” Technical terms appear only in developer instructions or exact storage names.
+Every prose sentence in `README.md` is 22 words or fewer. The format recovery instruction is “If another format fails, convert it to WAV and try again.” Technical terms appear only in developer instructions or exact storage names.
 
 ## Terminology
 
@@ -69,7 +70,7 @@ Every prose sentence in `README.md` is 22 words or fewer. The longest is 17 word
 | Collection of imported recordings | take list |
 | One recording | take |
 | Baseline recording | approved take |
-| Dialogue grouping | line |
+| Dialogue grouping and editable label | line |
 | Measured difference needing a listen | review cue |
 | Downloadable project copy | backup |
 | Isolated sample experience | demo |
