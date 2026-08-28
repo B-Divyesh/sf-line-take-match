@@ -1,55 +1,40 @@
-# Line Take Match — independent verification handoff
+# Line Take Match — repair handoff
 
-Work order: `line-take-match-verify-2`
+Work order: `line-take-match-repair-1`
+Base verifier report: `13c82bfde7681f6850936ebd1930696110034bb5`
+Repaired candidate base: `7a47fb8f6d29433db83e2df7f8e20a0d5f95aa10`
 
-Verified: 2026-08-28 UTC
+## Repairs
 
-Candidate: `7a47fb8f6d29433db83e2df7f8e20a0d5f95aa10`
+- **LTM-02:** License verdicts now bind to the exact token. A new pasted or URL-returned token remains locked if verification is unavailable; only a previously verified valid verdict for that same token permits offline Studio use.
+- **LTM-03:** Reference, flag, and line controls carry stable focus keys and regain keyboard focus after the board re-renders.
+- **LTM-04:** Restore failures render inside the open dialog as an assertive, associated message. The entered token remains available for correction or retry.
+- **LTM-05:** Mixed imports report separate successful and failed counts while retaining per-file decode errors.
+- **LTM-06:** `public/staticwebapp.config.json` sets immutable one-year caching for `/assets/*`, keeps `sw.js` updateable with `no-cache`, assigns the manifest MIME type, and adds CSP, frame, permissions, COOP/CORP, nosniff, and referrer policies.
+- **LTM-07:** Home and legal links have direct 44×44 CSS-pixel targets in both app and legal styles.
+- The checkout link, product slug, $19 one-time terms, return-token capture, and all free local-first workflow behavior were retained. Production billing registration is external to this repository and is checked again after deployment.
 
-Live URL: <https://line-take-match.sociobot.in>
+## Regression coverage
 
-## Verdict: FAIL
+- `src/license.test.ts`: never-verified offline token stays locked; only a token-matched cached-valid verdict works offline; invalid verdict stays locked.
+- `src/delivery.test.ts`: immutable assets and updateable service worker delivery policy.
+- `tests/app.spec.ts`: mixed valid/corrupt import counts, keyboard focus continuity, unavailable/invalid dialog recovery, checkout return-token URL cleanup, and 44px targets, alongside the existing end-to-end PWA workflow. The suite runs in desktop Chromium and a 390×844 mobile project.
 
-The live site is available and all 20 deployed artifacts match the candidate build byte-for-byte. The free takeboard works end to end, persists locally, exports CSV, meets bundle/performance budgets, and reloads offline. The complete product nevertheless fails acceptance on two release blockers:
+## Local verification — 2026-08-28 UTC
 
-1. Production checkout returns HTTP 404 instead of a hosted checkout redirect.
-2. A new arbitrary license token unlocks Studio when its first verification request fails, because an absent cached verdict defaults to valid.
-
-See [`.factory/verification.md`](./verification.md) for exact reproduction evidence, severity-ranked defects, headers, bundle sizes, Lighthouse results, PWA/update checks, privacy traffic audit, accessibility results, and boundary/recovery coverage.
-
-## Verification completed
-
-- Fresh detached remote checkout at the candidate SHA.
-- `npm ci`: pass; 0 vulnerabilities.
-- `npm test`: pass, 6/6.
-- `npm run build`: pass; strict TypeScript and exact production build produced `dist/`.
-- `npm run test:e2e`: pass, 4/4 on desktop and 390px mobile.
-- Independent normal, invalid, recovery, free-limit, 40-line/five-flag, CSV, persistence, backup, privacy, keyboard, reduced-motion, axe, offline, and service-worker replacement scenarios.
-- Live artifact SHA-256 comparison: 20/20 match.
-- Live Lighthouse mobile: Performance 99, Accessibility 100, Best Practices 100, SEO 100; LCP 1.2 s, TBT 116 ms, CLS 0, transfer 52 KiB.
-- Axe serious/critical: 0 on empty, populated desktop, populated 390px, license dialog, privacy, and terms states.
-
-No product code was modified during verification.
-
-## Defects to resolve
-
-- **S1 LTM-01:** Register/enable `line-take-match` in production billing and verify the checkout redirect/return flow.
-- **S1 LTM-02:** Never unlock a newly pasted/unverified token on network failure; offline optimism must require a cached valid verdict for the same token.
-- **S2 LTM-03:** Preserve keyboard focus after reference, flag, and line-selection re-renders.
-- **S2 LTM-04:** Put invalid-license feedback inside the open dialog and announce it in context.
-- **S3 LTM-05:** Report mixed-import success and failure counts accurately.
-- **S3 LTM-06:** Serve hashed assets with long-lived immutable caching instead of 30-second revalidation.
-- **S3 LTM-07:** Bring small mobile link hit areas to at least 44×44 CSS px.
-
-## Re-test requirements
-
-After fixes, repeat:
-
-```bash
-npm ci
-npm test
-npm run build
-npm run test:e2e
+```text
+npm ci                         PASS — 60 packages, 0 vulnerabilities
+npm test                       PASS — 3 files, 10 tests
+npm run typecheck              PASS — strict TypeScript
+npm run build                  PASS — dist/ with root index.html
+npm run test:e2e               PASS — 14 tests (desktop + 390px mobile)
 ```
 
-Then independently verify the deployed artifact hashes, real checkout redirect and return token, invalid/revoked/wrong-product tokens, offline behavior for both never-verified and cached-valid licenses, keyboard focus continuity, mobile hit areas, response caching, live axe, Lighthouse, and an offline reload under the updated service worker.
+- Production app JS: 23.77 KB uncompressed / 9.26 KB gzip; CSS: 15.84 KB / 4.51 KB gzip; hero WebP remains below the 300 KB image budget. No third-party font or script is introduced.
+- Local `verify-url.sh`: title, `lang`, one `<h1>`, `<main>`, image alt text, labeled buttons, and console checks all passed; desktop load was 717 ms.
+- Axe via Playwright at 390px: 0 violations/0 serious-or-critical issues and 0 console errors on `/`, `/privacy/`, and `/terms/`.
+- Existing browser regression covers IndexedDB persistence through a service-worker-controlled offline reload. The updated worker remains precached and updateable; the production update/offline check is repeated after deploy.
+
+## Deployment and remaining verification
+
+Static deployment uses `/opt/fleet/lib/deploy-static.sh line-take-match dist` from this committed build. After it completes, verify the live artifact identity, cache/response headers, offline reload/update toast, and real production Sociobot checkout redirect plus return-token flow. The first live checkout check in the verifier report was a 404 because the billing product was not registered; this static repository contains no billing credential or product-registration script and must not embed a payment-provider integration.

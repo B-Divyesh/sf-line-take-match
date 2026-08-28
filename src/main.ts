@@ -21,6 +21,9 @@ let unlocked = false;
 let undoTake: Take | null = null;
 let undoTimer = 0;
 let noticeTimer = 0;
+let focusAfterRender = '';
+let licenseError = '';
+let licenseToken = '';
 
 captureReturnedLicense();
 unlocked = hasOptimisticUnlock();
@@ -38,10 +41,11 @@ async function start() {
     render();
   }
   if (localStorage.getItem('sb_license:line-take-match')) {
-    const valid = await verifyLicense();
+    const verification = await verifyLicense();
+    const valid = verification === 'valid';
     if (valid !== unlocked) {
       unlocked = valid;
-      notice = valid ? 'Studio unlocked on this device.' : 'This license is no longer active. Free mode is still available.';
+      notice = valid ? 'Studio unlocked on this device.' : verification === 'invalid' ? 'This license is no longer active. Free mode is still available.' : '';
       render();
     }
   }
@@ -49,6 +53,7 @@ async function start() {
 }
 
 function render() {
+  const activeKey = document.activeElement instanceof HTMLElement ? document.activeElement.dataset.focusKey ?? '' : '';
   const lines = uniqueLines(takes);
   if (selectedLine && !lines.includes(selectedLine)) selectedLine = lines[0] ?? '';
   const visibleLines = lines.filter((line) => line.toLowerCase().includes(search.toLowerCase()));
@@ -102,6 +107,9 @@ function render() {
     <div class="toast ${notice ? 'is-visible' : ''}" role="status" aria-live="polite">${escapeHtml(notice)} ${undoTake ? '<button data-action="undo">Undo</button>' : ''}</div>
   `;
   bindEvents();
+  const focusKey = focusAfterRender || activeKey;
+  focusAfterRender = '';
+  if (focusKey) requestAnimationFrame(() => focusByKey(focusKey));
   clearTimeout(noticeTimer);
   if (notice && !undoTake) {
     noticeTimer = window.setTimeout(() => { notice = ''; render(); }, 5000);
@@ -139,7 +147,7 @@ function boardMarkup(lines: string[], current: Take[], reference: Take | undefin
 function lineButton(line: string) {
   const lineTakes = takes.filter((take) => take.line === line);
   const flagged = lineTakes.filter((take) => take.flagged).length;
-  return `<button class="line-button ${line === selectedLine ? 'active' : ''}" data-line="${escapeAttr(line)}" aria-current="${line === selectedLine ? 'true' : 'false'}"><span>${escapeHtml(line)}</span><small>${lineTakes.length} takes${flagged ? ` · ⚑ ${flagged}` : ''}</small></button>`;
+  return `<button class="line-button ${line === selectedLine ? 'active' : ''}" data-line="${escapeAttr(line)}" data-focus-key="line:${escapeAttr(line)}" aria-current="${line === selectedLine ? 'true' : 'false'}"><span>${escapeHtml(line)}</span><small>${lineTakes.length} takes${flagged ? ` · ⚑ ${flagged}` : ''}</small></button>`;
 }
 
 function takeMarkup(take: Take, reference?: Take) {
@@ -158,8 +166,8 @@ function takeMarkup(take: Take, reference?: Take) {
     ${metricCell('Pauses', `${Math.round(metrics.pauseRatio * 100)}%`, delta(metrics.pauseRatio * 100, reference ? reference.metrics.pauseRatio * 100 : undefined, ' pts'), metrics.pauseRatio * 100)}
     ${metricCell('Pitch range', metrics.pitchRange == null ? '—' : `${metrics.pitchRange.toFixed(1)} st`, metrics.pitchRange == null ? 'No stable pitch found' : delta(metrics.pitchRange, reference?.metrics.pitchRange ?? undefined, ' st'), Math.min(100, (metrics.pitchRange ?? 0) * 8))}
     <div class="take-actions">
-      <button class="chip ${take.reference ? 'active' : ''}" data-action="reference" data-id="${take.id}" ${take.reference ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${take.reference ? '✓ Reference' : 'Set reference'}</button>
-      <button class="chip ${take.flagged ? 'warning' : ''}" data-action="flag" data-id="${take.id}" aria-pressed="${take.flagged}">${take.flagged ? '⚑ Flagged' : 'Flag review'}</button>
+      <button class="chip ${take.reference ? 'active' : ''}" data-action="reference" data-id="${take.id}" data-focus-key="reference:${take.id}" ${take.reference ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${take.reference ? '✓ Reference' : 'Set reference'}</button>
+      <button class="chip ${take.flagged ? 'warning' : ''}" data-action="flag" data-id="${take.id}" data-focus-key="flag:${take.id}" aria-pressed="${take.flagged}">${take.flagged ? '⚑ Flagged' : 'Flag review'}</button>
       <label class="note-field"><span>Handoff note</span><input data-field="note" data-id="${take.id}" value="${escapeAttr(take.note)}" placeholder="Direction note"></label>
       <button class="icon-button" data-action="remove" data-id="${take.id}" aria-label="Remove ${escapeAttr(take.name)}">Remove</button>
     </div>
@@ -191,7 +199,7 @@ function reviewCueCount(metrics: Metrics, reference: Metrics) {
 }
 
 function licenseMarkup() {
-  return `<dialog id="license-dialog" class="license-dialog"><button class="dialog-close" data-action="close-license" aria-label="Close unlock panel">×</button><p class="section-kicker">Studio unlock</p><h2>${unlocked ? 'Your full board is open' : 'Keep the whole session together'}</h2><p>Free mode compares up to ${FREE_LIMIT} takes and always includes CSV export. A <strong>$19 one-time purchase</strong> adds unlimited takes and portable project backups. No subscription.</p><ul><li>Unlimited local takes and lines</li><li>Audio-inclusive JSON project backup</li><li>Core comparison and CSV stay free</li></ul>${unlocked ? '<p class="message success">License active on this device.</p><button class="button quiet" data-action="clear-license">Remove license from device</button>' : `<a class="button primary buy" href="${checkoutUrl}">Buy Studio — $19 once</a><form id="license-form"><label><span>Have a license? Paste it here</span><input id="license-token" required autocomplete="off" spellcheck="false"></label><button class="button secondary" type="submit">Verify and restore</button></form>`}<p class="legal-note">Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the license. See <a href="/privacy/">privacy</a> and <a href="/terms/">terms</a>.</p></dialog>`;
+  return `<dialog id="license-dialog" class="license-dialog"><button class="dialog-close" data-action="close-license" aria-label="Close unlock panel">×</button><p class="section-kicker">Studio unlock</p><h2>${unlocked ? 'Your full board is open' : 'Keep the whole session together'}</h2><p>Free mode compares up to ${FREE_LIMIT} takes and always includes CSV export. A <strong>$19 one-time purchase</strong> adds unlimited takes and portable project backups. No subscription.</p><ul><li>Unlimited local takes and lines</li><li>Audio-inclusive JSON project backup</li><li>Core comparison and CSV stay free</li></ul>${unlocked ? '<p class="message success">License active on this device.</p><button class="button quiet" data-action="clear-license">Remove license from device</button>' : `<a class="button primary buy" href="${checkoutUrl}">Buy Studio — $19 once</a><form id="license-form"><label><span>Have a license? Paste it here</span><input id="license-token" value="${escapeAttr(licenseToken)}" required aria-describedby="license-feedback" autocomplete="off" spellcheck="false"></label><button class="button secondary" type="submit">Verify and restore</button></form>${licenseError ? `<p id="license-feedback" class="message error" role="alert" aria-live="assertive">${escapeHtml(licenseError)}</p>` : '<p id="license-feedback" class="visually-hidden">Paste your Studio license token, then verify and restore it.</p>'}`}<p class="legal-note">Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the license. See <a href="/privacy/">privacy</a> and <a href="/terms/">terms</a>.</p></dialog>`;
 }
 
 function bindEvents() {
@@ -204,7 +212,7 @@ function bindEvents() {
   dropZone?.addEventListener('drop', (event) => { event.preventDefault(); dropZone.classList.remove('dragging'); void addFiles(event.dataTransfer?.files ?? null); });
   dropZone?.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); input?.click(); } });
   document.querySelector('#search')?.addEventListener('input', (event) => { search = (event.target as HTMLInputElement).value; render(); document.querySelector<HTMLInputElement>('#search')?.focus(); });
-  document.querySelectorAll<HTMLElement>('[data-line]').forEach((element) => element.addEventListener('click', () => { selectedLine = element.dataset.line ?? ''; render(); }));
+  document.querySelectorAll<HTMLElement>('[data-line]').forEach((element) => element.addEventListener('click', () => { selectedLine = element.dataset.line ?? ''; focusAfterRender = element.dataset.focusKey ?? ''; render(); }));
   document.querySelectorAll<HTMLElement>('[data-action]').forEach((element) => element.addEventListener('click', () => void handleAction(element.dataset.action ?? '', element.dataset.id, element)));
   document.querySelectorAll<HTMLInputElement>('[data-field]').forEach((element) => element.addEventListener('change', () => void updateField(element)));
   document.querySelector('#license-form')?.addEventListener('submit', (event) => void restoreLicense(event));
@@ -222,6 +230,8 @@ async function addFiles(fileList: FileList | null) {
     document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal();
     return;
   }
+  let succeeded = 0;
+  const failures: string[] = [];
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
     processing = `Analyzing ${index + 1} of ${files.length}: ${file.name}`;
@@ -237,12 +247,16 @@ async function addFiles(fileList: FileList | null) {
       }
       takes.push(take);
       selectedLine ||= line;
+      succeeded += 1;
     } catch (cause) {
-      error = `${file.name}: ${cause instanceof Error ? cause.message : 'Analysis failed.'}`;
+      failures.push(`${file.name}: ${cause instanceof Error ? cause.message : 'Analysis failed.'}`);
     }
   }
   processing = '';
-  notice = `${files.length} file${files.length === 1 ? '' : 's'} processed locally.`;
+  error = failures.join(' ');
+  notice = failures.length
+    ? `${succeeded} file${succeeded === 1 ? '' : 's'} processed locally; ${failures.length} file${failures.length === 1 ? '' : 's'} could not be analyzed.`
+    : `${succeeded} file${succeeded === 1 ? '' : 's'} processed locally.`;
   render();
 }
 
@@ -270,7 +284,8 @@ async function handleAction(action: string, id?: string, source?: HTMLElement) {
     takes = takes.filter((item) => item.id !== take.id); await takeStore.remove(take.id); undoTake = take; notice = `${take.name} removed.`;
     undoTimer = window.setTimeout(() => { undoTake = null; notice = ''; render(); }, 8000);
   }
-  source?.blur(); render();
+  focusAfterRender = source?.dataset.focusKey ?? '';
+  render();
 }
 
 async function updateField(input: HTMLInputElement) {
@@ -289,13 +304,30 @@ async function restoreLicense(event: Event) {
   event.preventDefault();
   const token = document.querySelector<HTMLInputElement>('#license-token')?.value.trim();
   if (!token) return;
+  licenseToken = token;
+  licenseError = '';
   saveLicense(token);
   const submit = (event.target as HTMLFormElement).querySelector<HTMLButtonElement>('button');
   if (submit) { submit.disabled = true; submit.textContent = 'Verifying…'; }
-  const valid = await verifyLicense(true);
+  const verification = await verifyLicense(true);
+  const valid = verification === 'valid';
   unlocked = valid;
-  if (valid) { document.querySelector<HTMLDialogElement>('#license-dialog')?.close(); notice = 'Studio restored on this device.'; render(); }
-  else { clearLicense(); error = 'That license could not be verified. Check the token and try again.'; render(); document.querySelector<HTMLDialogElement>('#license-dialog')?.showModal(); }
+  if (valid) { licenseToken = ''; document.querySelector<HTMLDialogElement>('#license-dialog')?.close(); notice = 'Studio restored on this device.'; render(); }
+  else {
+    if (verification === 'invalid') clearLicense();
+    licenseError = verification === 'invalid'
+      ? 'That license is not active. Check the token and try again.'
+      : 'We could not verify this license right now. Reconnect and try again; Studio stays locked until it is verified.';
+    render();
+    const dialog = document.querySelector<HTMLDialogElement>('#license-dialog');
+    dialog?.showModal();
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#license-token')?.focus());
+  }
+}
+
+function focusByKey(key: string) {
+  const next = [...document.querySelectorAll<HTMLElement>('[data-focus-key]')].find((element) => element.dataset.focusKey === key);
+  next?.focus({ preventScroll: true });
 }
 
 async function importBackup(file?: File) {
