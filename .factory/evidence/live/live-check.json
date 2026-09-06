@@ -1,7 +1,10 @@
 {
-  "checkedAt": "2026-09-06T03:55:41.650Z",
+  "checkedAt": "2026-09-06T06:19:45.130Z",
   "base": "https://line-take-match.sociobot.in",
-  "viewport": "390x844",
+  "viewports": [
+    "390x844",
+    "1440x960"
+  ],
   "consoleErrors": [],
   "demo": {
     "sampleTakes": 3,
@@ -10,6 +13,12 @@
     "resetRestoredSamples": true,
     "clearedOnExit": true,
     "offlineReload": true
+  },
+  "offlineFallback": {
+    "directLanguage": true,
+    "retryReturnedToApp": true,
+    "touchTarget": true,
+    "seriousAxeViolations": 0
   },
   "checkout": {
     "status": 303,
@@ -46,6 +55,12 @@
       "path": "/not-a-real-page",
       "status": 404,
       "title": "Page not found — Line Take Match",
+      "seriousAxeViolations": 0
+    },
+    {
+      "path": "/offline.html",
+      "status": 200,
+      "title": "Offline — Line Take Match",
       "seriousAxeViolations": 0
     }
   ]

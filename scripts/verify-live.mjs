@@ -122,6 +122,21 @@ try {
     routeChecks.push({ path, status: response.status(), title, seriousAxeViolations: 0 });
   }
 
+  const offlineResponse = await page.goto(`${base}/offline.html`, { waitUntil: 'networkidle' });
+  check(offlineResponse?.status() === 200, `/offline.html returned ${offlineResponse?.status()}`);
+  check(await page.title() === 'Offline — Line Take Match', 'Offline title is wrong');
+  check(await page.locator('main').count() === 1, 'Offline page must have one main landmark');
+  check(await page.getByRole('heading', { level: 1, name: 'You’re offline' }).isVisible(), 'Offline heading is not direct');
+  const retry = page.getByRole('link', { name: 'Try again' });
+  const retryBox = await retry.boundingBox();
+  check(Boolean(retryBox && retryBox.height >= 44), 'Offline retry target is smaller than 44px');
+  const offlineSerious = (await new AxeBuilder({ page }).analyze()).violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? ''));
+  check(offlineSerious.length === 0, '/offline.html has serious accessibility violations');
+  await retry.click();
+  await expect(page).toHaveURL(`${base}/`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Compare voice takes with an approved take.' })).toBeVisible();
+  routeChecks.push({ path: '/offline.html', status: 200, title: 'Offline — Line Take Match', seriousAxeViolations: 0 });
+
   await page.goto(`${base}/`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'See Studio details' }).click();
   check(await page.getByRole('link', { name: 'Buy Studio — $19 once' }).getAttribute('href') === 'https://api.sociobot.in/api/v1/products/line-take-match/checkout', 'Checkout link is wrong');
@@ -137,9 +152,32 @@ try {
   check(manifest.headers()['content-type']?.startsWith('application/manifest+json'), 'Manifest MIME type is wrong');
   check(consoleErrors.length === 0, `Console errors: ${consoleErrors.join('; ')}`);
 
+  const desktopContext = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+  const desktopPage = await desktopContext.newPage();
+  const desktopErrors = [];
+  desktopPage.on('pageerror', (error) => desktopErrors.push(String(error)));
+  desktopPage.on('console', (message) => { if (message.type() === 'error') desktopErrors.push(message.text()); });
+  await desktopPage.goto(`${base}/`, { waitUntil: 'networkidle' });
+  await expect(desktopPage.getByRole('heading', { level: 1, name: 'Compare voice takes with an approved take.' })).toBeVisible();
+  check(await desktopPage.getByText('For indie animators and game creators', { exact: false }).isVisible(), 'Desktop audience copy is missing');
+  const desktopDemoAction = desktopPage.getByRole('link', { name: 'Try it with sample data' });
+  const desktopDemoActionBox = await desktopDemoAction.boundingBox();
+  check(Boolean(desktopDemoActionBox && desktopDemoActionBox.y + desktopDemoActionBox.height <= 960), 'Demo action is outside the first desktop viewport');
+  await desktopDemoAction.click();
+  await expect(desktopPage.getByText('Demo — sample data, nothing is saved', { exact: false })).toBeVisible();
+  await expect(desktopPage.locator('.take-card')).toHaveCount(3);
+  await desktopPage.goto(`${base}/offline.html`, { waitUntil: 'networkidle' });
+  await expect(desktopPage.getByRole('heading', { level: 1, name: 'You’re offline' })).toBeVisible();
+  await desktopPage.getByRole('link', { name: 'Try again' }).click();
+  await expect(desktopPage.getByRole('heading', { level: 1, name: 'Compare voice takes with an approved take.' })).toBeVisible();
+  await desktopPage.screenshot({ path: new URL('cold-desktop.png', evidence).pathname, fullPage: true });
+  check(desktopErrors.length === 0, `Desktop console errors: ${desktopErrors.join('; ')}`);
+  await desktopContext.close();
+
   const report = {
-    checkedAt: new Date().toISOString(), base, viewport: '390x844', consoleErrors,
+    checkedAt: new Date().toISOString(), base, viewports: ['390x844', '1440x960'], consoleErrors: [...consoleErrors, ...desktopErrors],
     demo: { sampleTakes: 3, firstViewportProof: true, realSentinelPreserved: true, resetRestoredSamples: true, clearedOnExit: true, offlineReload: true },
+    offlineFallback: { directLanguage: true, retryReturnedToApp: true, touchTarget: true, seriousAxeViolations: 0 },
     checkout: { status: checkout.status(), hostedRedirect: true, invalidLicenseRejected: true },
     manifestContentType: manifest.headers()['content-type'], routes: routeChecks,
   };
