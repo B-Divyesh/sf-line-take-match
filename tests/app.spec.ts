@@ -73,6 +73,26 @@ test('serves route-specific metadata and the designed not-found page', async ({ 
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
 });
 
+test('explains the offline state and returns to the app', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+
+  await page.goto('/offline.html');
+  await expect(page).toHaveTitle('Offline — Line Take Match');
+  await expect(page.getByRole('heading', { level: 1, name: 'You’re offline' })).toBeVisible();
+  await expect(page.getByText('Connect to the internet, then try again.')).toBeVisible();
+
+  const retry = page.getByRole('link', { name: 'Try again' });
+  const retryBox = await retry.boundingBox();
+  expect(retryBox?.height).toBeGreaterThanOrEqual(44);
+  await retry.click();
+
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Compare voice takes with an approved take.' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('moves focus to the route heading and announces internal navigation and browser back', async ({ page }) => {
   await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Privacy' }).click();
   await expect(page).toHaveURL(/\/privacy\/$/);
@@ -217,7 +237,7 @@ test('has no serious accessibility issues, console errors, or mobile overflow on
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-  for (const route of ['/', '/?demo=1', '/privacy/', '/terms/', '/404/']) {
+  for (const route of ['/', '/?demo=1', '/privacy/', '/terms/', '/404/', '/offline.html']) {
     await page.goto(route);
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('main')).toHaveCount(1);

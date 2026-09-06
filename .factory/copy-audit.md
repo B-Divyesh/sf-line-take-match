@@ -1,6 +1,6 @@
-# Copy audit — polish round 3
+# Copy audit — repair 3
 
-Audited 2026-08-28. Counts use whitespace-delimited words. No sentence exceeds
+Audited 2026-09-06. Counts use whitespace-delimited words. No sentence exceeds
 22 words and no banned marketing term appears. “Take list,” “take,” “approved
 take,” and “line” are the only product nouns for those concepts.
 
@@ -83,7 +83,7 @@ take,” and “line” are the only product nouns for those concepts.
 | Downloadable project copy | backup |
 | Isolated sample experience | demo |
 
-## Privacy and not-found routes
+## Privacy, not-found, and offline routes
 
 | Copy | Words | Result |
 | --- | ---: | --- |
@@ -91,3 +91,9 @@ take,” and “line” are the only product nouns for those concepts.
 | Page not found | 3 | Direct recovery heading |
 | This address does not match a page. | 7 | Direct recovery text |
 | Go to Line Take Match | 5 | Clear recovery action |
+| Connection status | 2 | Direct state label |
+| You’re offline | 2 | Direct recovery heading |
+| Connect to the internet, then try again. | 7 | Clear recovery step |
+| After one connected visit, Line Take Match works offline. | 9 | Listed claim |
+| Your recordings stay on this device. | 6 | Listed claim |
+| Try again | 2 | Clear recovery action |

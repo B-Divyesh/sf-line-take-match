@@ -1,4 +1,4 @@
-const CACHE = 'line-take-match-v2';
+const CACHE = 'line-take-match-v3';
 const PRECACHE = self.__PRECACHE_MANIFEST__ || ['/', '/offline.html', '/manifest.webmanifest', '/assets/icon.svg'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
