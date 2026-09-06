@@ -70,7 +70,7 @@ test('serves route-specific metadata and the designed not-found page', async ({ 
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /social-preview\.jpg$/);
   await page.goto('/404/');
   await expect(page).toHaveTitle('Page not found — Line Take Match');
-  await expect(page.getByRole('heading', { level: 1, name: 'This page missed its cue.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
 });
 
 test('moves focus to the route heading and announces internal navigation and browser back', async ({ page }) => {
@@ -98,7 +98,7 @@ test('restores a heading destination through demo, terms, and not-found history 
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
 
   await page.goto('/404/');
-  await page.getByRole('link', { name: 'Return to Line Take Match' }).click();
+  await page.getByRole('link', { name: 'Go to Line Take Match' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   await page.goBack();
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();

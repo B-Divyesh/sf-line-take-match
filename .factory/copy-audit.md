@@ -82,3 +82,12 @@ take,” and “line” are the only product nouns for those concepts.
 | Measured difference needing a listen | review cue |
 | Downloadable project copy | backup |
 | Isolated sample experience | demo |
+
+## Privacy and not-found routes
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| You can remove takes, site data, or your local license. | 10 | Listed as `data-removal` |
+| Page not found | 3 | Direct recovery heading |
+| This address does not match a page. | 7 | Direct recovery text |
+| Go to Line Take Match | 5 | Clear recovery action |

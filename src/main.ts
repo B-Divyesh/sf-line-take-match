@@ -167,7 +167,7 @@ function informationMarkup() {
 }
 
 function footerMarkup() {
-  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · polish-3</span></nav></footer>`;
+  return `<footer><p>Compare recorded voice takes without uploading audio.</p><nav aria-label="Footer"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Built by Param Factory</span><span>v1.1.0 · repair-2</span></nav></footer>`;
 }
 
 function loadingMarkup() {

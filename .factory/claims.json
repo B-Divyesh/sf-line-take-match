@@ -110,5 +110,12 @@
     "where": "take list",
     "test": "npm run test:claims -- --grep @claim:comparison-playback",
     "sandbox": "fresh demo; mock local audio playback, activate the comparison action, and assert approved sample playback precedes the selected sample"
+  },
+  {
+    "id": "data-removal",
+    "claim": "You can remove takes, site data, or your local license.",
+    "where": "privacy page",
+    "test": "npm run test:claims -- --grep @claim:data-removal",
+    "sandbox": "fresh real list; remove a take and wait for its undo window to end, verify and remove a recorded Studio license, then clear browser site data and reload an empty take list"
   }
 ]

@@ -297,3 +297,42 @@ test('@claim:comparison-playback plays the approved take before the selected tak
   await page.getByRole('button', { name: 'Play approved, then this take' }).first().click();
   await expect.poll(() => page.locator('html').getAttribute('data-played')).toContain('demo-door-01,demo-door-02');
 });
+
+test('@claim:data-removal removes a take, a local license, and cleared site data', async ({ page, context }) => {
+  await Promise.all([page.waitForURL('/'), page.getByRole('button', { name: 'Start for real' }).click()]);
+  await page.locator('#consent').check();
+  await page.locator('#audio-files').setInputFiles(wav('remove-me_take-01.wav'));
+  await expect(page.locator('.take-card')).toHaveCount(1, { timeout: 15_000 });
+
+  await page.evaluate(() => { window.confirm = () => true; });
+  await page.getByRole('button', { name: 'Remove remove-me_take-01' }).click();
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
+  await expect(page.locator('.take-card')).toHaveCount(0);
+  await page.waitForTimeout(8_100);
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Your takes will appear here' })).toBeVisible();
+
+  await page.route('**/api/v1/products/line-take-match/verify?license=removal-test-token', (route) => route.fulfill({ json: { valid: true, reason: 'ok' } }));
+  await page.getByRole('button', { name: 'See Studio — $19' }).click();
+  await page.locator('#license-token').fill('removal-test-token');
+  await page.getByRole('button', { name: 'Verify and restore' }).click();
+  await expect(page.getByRole('button', { name: 'Manage Studio license' })).toBeVisible();
+  await page.getByRole('button', { name: 'Manage Studio license' }).click();
+  await page.getByRole('button', { name: 'Remove license from device' }).click();
+  await expect(page.getByRole('button', { name: 'See Studio — $19' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'See Studio — $19' })).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('sb_license:line-take-match'))).toBeNull();
+
+  await page.locator('#consent').check();
+  await page.locator('#audio-files').setInputFiles(wav('clear-site-data_take-01.wav'));
+  await expect(page.locator('.take-card')).toHaveCount(1, { timeout: 15_000 });
+  const origin = new URL(page.url()).origin;
+  await page.goto('about:blank');
+  const session = await context.newCDPSession(page);
+  await session.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' });
+  await session.detach();
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Your takes will appear here' })).toBeVisible();
+  await expect(page.locator('.take-card')).toHaveCount(0);
+});
