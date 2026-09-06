@@ -1,4 +1,40 @@
-# Line Take Match — repair 3 handoff
+# Line Take Match — verification 5 handoff
+
+## Verification 5 outcome
+
+**PASS.** Independent verification 5 found zero findings and zero untested
+claims. This current section supersedes the earlier repair handoff retained
+below for historical context. The full record is in
+`.factory/verification-5.md`.
+
+- Product implementation: `44803891c20dd53276d0babd6ad432777e3fc1cc`
+- Documentation/evidence base reviewed: `ac1f14a28444bf24d967eed9e3862b008ee889e2`
+- Live app: <https://line-take-match.sociobot.in>
+
+Verification 5 used a clean clone and a fresh live deployment. It passed 13
+unit tests, type checking, a production build, all 17 individual claim
+commands, the 17-test aggregate claim suite, and all 64 browser tests. The
+phone and desktop first screens, demo isolation and reset, offline reload,
+legal and 404 pages, links, focus, live checkout redirect, Axe scans, and
+response headers passed. The clean build matched 29 public deployed files
+byte-for-byte. Live Lighthouse scored 100 performance, 100 accessibility, 100
+best practices, and 100 SEO (FCP 1.0 s, LCP 1.2 s, TBT 0 ms, CLS 0).
+
+To repeat the check:
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run build
+npm run test:claims
+npm run test:e2e -- --workers=1
+npm run verify:live
+```
+
+There are no known gaps. This static local-first PWA has no backend, so tenant
+isolation, restart persistence, health, and 429/Retry-After checks do not
+apply.
 
 ## Outcome
 
